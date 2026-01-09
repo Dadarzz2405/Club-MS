@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Login | Rohis Attendance System{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='login.css') }}">
+<style>
+@import url("https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600&family=Nunito:wght@600;700;800&display=swap");
+
+body {
+    font-family: 'Heebo', sans-serif;
+    margin: 0;
+    padding: 0;
+}
+</style>
+{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-center align-items-center" style="min-height: 70vh;">
+    <div class="card shadow p-4 wow fadeInUp" style="width: 380px; border-radius: 15px;">
+        <div class="text-center mb-4 wow fadeInDown" data-wow-delay="0.1s">
+            <h3 class="fw-bold text-primary mb-2">Rohis Attendance</h3>
+            <p class="text-muted">Please login to continue</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              {% set alert_class = 'alert-danger' if category == 'error' else 'alert-' + category %}
+              <div class="alert {{ alert_class }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+            
+        <form method="POST" class="wow fadeInUp" data-wow-delay="0.2s">
+        <div class="form-floating mb-3">
+            <input
+                name="email"
+                type="email"
+                class="form-control"
+                id="email"
+                placeholder="name@example.com"
+                required
+            >
+            <label for="email">School Email</label>
+        </div>
+
+        <div class="form-floating mb-3">
+            <input
+                name="password"
+                type="password"
+                class="form-control"
+                id="password"
+                placeholder="Password"
+                required
+            >
+            <label for="password">Password</label>
+        </div>
+
+            <button type="submit" class="btn btn-primary w-100 mt-3 wow fadeInUp" data-wow-delay="0.3s">Login</button>
+        </form>
+
+    </div>
+</div>
+{% endblock %}

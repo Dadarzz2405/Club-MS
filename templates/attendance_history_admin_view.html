@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Attendance: {{ user.name }} — Rohis{% endblock %}
+
+{% block content %}
+<div class="mt-4">
+
+    <div class="card shadow p-4 mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h3 class="fw-bold mb-0">📊 Attendance History</h3>
+                <p class="text-muted mb-0"><strong>{{ user.name }}</strong> — {{ user.class_name }}</p>
+            </div>
+            <a href="/attendance-history-admin" class="btn btn-sm btn-outline-secondary">Back</a>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-white bg-primary shadow-sm">
+                <div class="card-body text-center">
+                    <h4 class="fw-bold">{{ summary.present }}</h4>
+                    <p class="mb-0">Present</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card text-white bg-danger shadow-sm">
+                <div class="card-body text-center">
+                    <h4 class="fw-bold">{{ summary.absent }}</h4>
+                    <p class="mb-0">Absent</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card text-dark bg-warning shadow-sm">
+                <div class="card-body text-center">
+                    <h4 class="fw-bold">{{ summary.excused }}</h4>
+                    <p class="mb-0">Excused</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attendance Table -->
+    <div class="card shadow p-4">
+
+        <h4 class="fw-bold mb-3">📅 Detailed Records</h4>
+
+        <div class="table-responsive">
+        <table class="table table-hover table-bordered mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Session</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for r, session_name, session_date in records %}
+                <tr>
+                    <td>{{ session_name }}</td>
+                    <td>{{ session_date }}</td>
+                    <td>
+                        {% if r.status == "present" %}
+                            <span class="badge bg-primary">Present</span>
+                        {% elif r.status == "absent" %}
+                            <span class="badge bg-danger">Absent</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark">Excused</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+
+        </table>
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}

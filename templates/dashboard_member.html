@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Member Dashboard — Rohis{% endblock %}
+
+{% block head %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.css" rel="stylesheet">
+
+<style>
+#dashboard-calendar {
+    margin-top: 30px;
+    background: #ffffff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.fc-event-title {
+    display: flex;
+    align-items: center;
+    font-size: 0.8rem;
+}
+
+.islamic-icon {
+    margin-right: 6px;
+}
+
+.rohis-session {
+    background-color: #1976d2 !important;
+    border-color: #1976d2 !important;
+}
+
+.fc-day-today {
+    background: #e3f2fd !important;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mt-4">
+    <div class="card shadow p-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="fw-bold mb-0">Member Dashboard</h2>
+                <p class="text-muted mb-0">
+                    Welcome, {{ current_user.username }}
+                </p>
+            </div>
+        </div>
+
+        <hr>
+
+        <div class="row g-3">
+            <div class="col-md-6">
+                <a href="/attendance-history"
+                   class="card text-decoration-none text-dark h-100 shadow-sm p-3 d-block">
+                    <h5 class="mb-1">📈 My Attendance History</h5>
+                    <p class="small text-muted mb-0">
+                        View your attendance per session
+                    </p>
+                </a>
+            </div>
+
+            <div class="col-md-6">
+                <a href="/member-list"
+                   class="card text-decoration-none text-dark h-100 shadow-sm p-3 d-block">
+                    <h5 class="mb-1">👥 View Member List</h5>
+                    <p class="small text-muted mb-0">
+                        See other members
+                    </p>
+                </a>
+            </div>
+        </div>
+
+        <hr class="my-5">
+
+        <div class="text-center">
+            <a href="/calendar" class="btn btn-primary btn-lg">
+                📅 View Rohis Calendar
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{% endblock %}

@@ -1,0 +1,76 @@
+from app import app, db
+from models import User
+from flask_bcrypt import Bcrypt
+
+bcrypt = Bcrypt(app)  
+
+INITIAL_PASSWORD = "rohis2025"
+
+
+members = [
+    {"email": "muhammad.syathir@gdajogja.sch.id", "name": "Muhammad Syathir", "class": "10-D", "role": "admin"},
+    {"email": "aiesha.makaila@gdajogja.sch.id", "name": "Aiesha Makaila", "class": "10-D", "role": "member"},
+    {"email": "aisyah.putri@gdajogja.sch.id", "name": "Aisyah Putri", "class": "10-D", "role": "member"},
+    {"email": "aqillah.hasanah@gdajogja.sch.id", "name": "Aqillah Hasanah", "class": "10-C", "role": "member"},
+    {"email": "arya.rahadian@gdajogja.sch.id", "name": "Arya Rahadian", "class": "10-B", "role": "member"},
+    {"email": "atthahirah.tsania@gdajogja.sch.id", "name": "Atthahirah Tsania", "class": "10-D", "role": "member"},
+    {"email": "aulia.meilinda@gdajogja.sch.id", "name": "Aulia Meilinda", "class": "10-A", "role": "member"},
+    {"email": "devone.nalandra@gdajogja.sch.id", "name": "Devone Nalandra", "class": "10-B", "role": "member"},
+    {"email": "dzakya.prasetya@gdajogja.sch.id", "name": "Dzakya Prasetya", "class": "10-A", "role": "member"},
+    {"email": "evan.farizqi@gdajogja.sch.id", "name": "Evan Farizqi", "class": "10-B", "role": "member"},
+    {"email": "faiq.asyam@gdajogja.sch.id", "name": "Faiq Asyam", "class": "10-A", "role": "member"},
+    {"email": "ghozy.suciawan@gdajogja.sch.id", "name": "Ghozy Suciawan", "class": "10-D", "role": "ketua"},
+    {"email": "hadiqoh.aini@gdajogja.sch.id", "name": "Hadiqoh Aini", "class": "10-C", "role": "member"},
+    {"email": "haidar.nasirodin@gdajogja.sch.id", "name": "Haidar Nasirodin", "class": "10-A", "role": "admin"},  
+    {"email": "hammam.prasetyo@gdajogja.sch.id", "name": "Hammam Prasetyo", "class": "10-B", "role": "member"},
+    {"email": "husein.syamil@gdajogja.sch.id", "name": "Husein Syamil", "class": "10-C", "role": "member"},
+    {"email": "intahani.sani@gdajogja.sch.id", "name": "Intahani Sani", "class": "10-A", "role": "member"},
+    {"email": "irfan.ansari@gdajogja.sch.id", "name": "Irfan Ansari", "class": "10-B", "role": "member"},
+    {"email": "jinan.muntaha@gdajogja.sch.id", "name": "Jinan Muntaha", "class": "10-C", "role": "member"},
+    {"email": "kemas.tamada@gdajogja.sch.id", "name": "Kemas Tamada", "class": "10-D", "role": "member"},
+    {"email": "khoirun.istiqomah@gdajogja.sch.id", "name": "Khoirun Istiqomah", "class": "10-C", "role": "member"},
+    {"email": "mufadilla.legisa@gdajogja.sch.id", "name": "Mufadilla Legisa", "class": "10-B", "role": "member"},
+    {"email": "muhammad.ismoyo@gdajogja.sch.id", "name": "Muhammad Ismoyo", "class": "10-D", "role": "member"},
+    {"email": "nabila.patricia@gdajogja.sch.id", "name": "Nabila Patricia", "class": "10-A", "role": "member"},
+    {"email": "nabilah.putri@gdajogja.sch.id", "name": "Nabilah Putri", "class": "10-A", "role": "member"},
+    {"email": "naufal.syuja@gdajogja.sch.id", "name": "Naufal Syuja", "class": "10-D", "role": "member"},
+    {"email": "rauf.akmal@gdajogja.sch.id", "name": "Rauf Akmal", "class": "10-A", "role": "member"},
+    {"email": "rifqy.daaris@gdajogja.sch.id", "name": "Rifqy Daaris", "class": "10-A", "role": "member"},
+    {"email": "tengku.harahap@gdajogja.sch.id", "name": "Tengku Harahap", "class": "10-B", "role": "member"},
+    {"email": "zahra.layla@gdajogja.sch.id", "name": "Zahra Layla", "class": "10-D", "role": "member"},
+    {"email": "zalfa.zahira@gdajogja.sch.id", "name": "Zalfa Zahira", "class": "10-C", "role": "member"}
+]
+def seed_members():
+    with app.app_context():
+        for m in members:
+            hashed_pw = bcrypt.generate_password_hash(INITIAL_PASSWORD).decode('utf-8')  # ✅ Correct way
+            user = User(
+                email=m["email"],
+                password=hashed_pw,
+                name=m["name"],
+                class_name=m["class"],
+                role=m["role"],
+                must_change_password=True
+            )
+            db.session.add(user)
+        # Persist all added users
+        db.session.commit()
+    print("✅ All members added with valid passwords!")
+
+def update_class_names():
+    with app.app_context():
+        for m in members:
+            user = User.query.filter_by(email=m["email"]).first()
+
+            if user:
+                # ✅ Update only the class
+                user.class_name = m["class"]
+                print(f"Updated class for {user.email} → {m['class']}")
+            else:
+                print(f"Skipped (not found): {m['email']}")
+
+        db.session.commit()
+
+    print("✅ Class names updated successfully!")
+
+seed_members()

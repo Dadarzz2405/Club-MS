@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Rohis Calendar{% endblock %}
+
+{% block head %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.css" rel="stylesheet">
+
+<style>
+/* Calendar container */
+#calendar {
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+/* Rohis sessions */
+.rohis-session {
+    background: linear-gradient(135deg, #1e88e5, #1565c0) !important;
+    border: none !important;
+    color: #fff !important;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+/* Islamic holidays */
+.fc-event.islamic-holiday {
+    background: linear-gradient(135deg, #1e88e5, #1565c0) !important;
+    border: none !important;
+    color: #fff !important;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+/* Event hover animation */
+.fc-event:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+    transition: 0.2s ease;
+}
+
+/* Event fade animation */
+.fc-event {
+    animation: fadeInUp 0.25s ease;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Icon spacing */
+.islamic-icon {
+    margin-right: 5px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-calendar-alt me-2"></i>
+                    Rohis Calendar
+                </h4>
+            </div>
+
+            <div class="card-body">
+                <p class="text-muted mb-3">
+                    📅 Calendar of Islamic Holidays and Rohis Meetings 🌙
+                </p>
+
+                <div class="mb-3 d-flex gap-2 flex-wrap">
+                    <span class="badge bg-primary">📘 Rohis Session</span>
+                    <span class="badge bg-primary">🌙 Islamic Holiday</span>
+                </div>
+
+                <div id="calendar"></div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const calendarEl = document.getElementById('calendar');
+
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        height: 700,
+        nowIndicator: true,
+
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        },
+
+        events: '/api/dashboard_calendar',
+
+        eventClassNames: function(arg) {
+            if (arg.event.extendedProps.type === 'rohis_session') {
+                return ['rohis-session'];
+            }
+            if (arg.event.extendedProps.type === 'islamic_holiday') {
+                return ['islamic-holiday'];
+            }
+            return [];
+        },
+
+        eventContent: function (arg) {
+            const isHoliday = arg.event.extendedProps.type === 'islamic_holiday';
+            const el = document.createElement('div');
+
+            el.innerHTML = isHoliday
+                ? `<span class="islamic-icon">🌙</span>${arg.event.title}`
+                : arg.event.title;
+
+            return { domNodes: [el] };
+        },
+
+        eventDidMount: function(info) {
+            if (info.event.extendedProps.hijri) {
+                info.el.title =
+                    info.event.title + "\n" +
+                    info.event.extendedProps.hijri;
+            }
+        }
+    });
+
+    calendar.render();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Mark Attendance — Rohis{% endblock %}
+
+{% block content %}
+<div class="mt-4">
+    <div class="card shadow p-4">
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="fw-bold mb-0">Mark Attendance</h2>
+            <button form="attForm" class="btn btn-primary">Save Attendance</button>
+        </div>
+
+        <form method="POST" id="attForm">
+            <div class="mb-3">
+                <label class="form-label">Select Session</label>
+                <select name="session_id" class="form-select" required>
+                    {% for s in sessions %}
+                    <option value="{{ s.id }}">{{ s.name }} — {{ s.date }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="table-responsive">
+            <table class="table table-bordered align-middle">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th class="text-center">Present</th>
+                        <th class="text-center">Absent</th>
+                        <th class="text-center">Excused</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for u in users %}
+                    <tr>
+                        <td>{{ u.name }}</td>
+                        <td class="text-center"><input type="radio" name="status_{{ u.id }}" value="present"></td>
+                        <td class="text-center"><input type="radio" name="status_{{ u.id }}" value="absent"></td>
+                        <td class="text-center"><input type="radio" name="status_{{ u.id }}" value="excused"></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+        </form>
+
+    </div>
+</div>
+{% endblock %}

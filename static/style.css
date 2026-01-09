@@ -1,0 +1,71 @@
+/********** Template CSS **********/
+:root {
+    --primary: #10b981; /* Emerald 500 */
+    --primary-dark: #059669; /* Emerald 600 */
+    --primary-light: #34d399; /* Emerald 400 */
+    --secondary: #0ea5e9; /* Sky 500 */
+    --dark: #064e3b; /* Emerald 900 */
+    --light: #f0fdf4; /* Emerald 50 */
+    --glass: rgba(255, 255, 255, 0.9);
+}
+
+body {
+    font-family: 'Inter', 'Heebo', sans-serif;
+    background: radial-gradient(circle at top right, #d1fae5, #f0fdf4);
+    color: var(--dark);
+    min-height: 100vh;
+}
+
+.navbar {
+    background: var(--glass) !important;
+    backdrop-filter: blur(16px);
+    border-bottom: 2px solid rgba(16, 185, 129, 0.1);
+    transition: all 0.3s ease;
+}
+
+.card {
+    background: var(--glass);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: 24px;
+    box-shadow: 0 10px 40px rgba(6, 78, 59, 0.05);
+}
+
+.card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 50px rgba(6, 78, 59, 0.1);
+    border-color: var(--primary-light);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    border: none;
+    border-radius: 14px;
+    box-shadow: 0 8px 16px rgba(16, 185, 129, 0.2);
+}
+
+.btn-primary:hover {
+    transform: scale(1.05);
+    box-shadow: 0 12px 24px rgba(16, 185, 129, 0.3);
+}
+
+.form-control, .form-select {
+    border-radius: 14px;
+    border: 2px solid #e2e8f0;
+    padding: 14px 18px;
+    background: #fff;
+}
+
+.form-control:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
+}
+
+.role-badge {
+    padding: 8px 16px;
+    border-radius: 12px;
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--primary-dark);
+    border: 1px solid var(--primary-light);
+}
+

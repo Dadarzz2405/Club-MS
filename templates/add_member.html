@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Add Member — Rohis{% endblock %}
+
+{% block content %}
+<div class="mt-4 d-flex justify-content-center">
+    <div class="card shadow p-4 wow fadeInUp" style="max-width: 600px; width: 100%;">
+
+        <h3 class="fw-bold text-center mb-4 wow fadeInDown" data-wow-delay="0.1s">Add New Member</h3>
+
+        <form method="POST" class="wow fadeInUp" data-wow-delay="0.2s">
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-medium">Full Name</label>
+                    <input type="text" name="name" class="form-control" required>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-medium">Class (e.g. XI-2)</label>
+                    <input type="text" name="class_name" class="form-control">
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-medium">Username</label>
+                <input type="text" name="username" class="form-control" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-medium">Password</label>
+                <input type="password" name="password" class="form-control" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-medium">Role</label>
+                <select name="role" class="form-select">
+                    <option value="member">Member</option>
+                    <option value="admin">Admin</option>
+                    <option value="ketua">Ketua</option>
+                    <option value="pembina">Pembina</option>
+                </select>
+            </div>
+
+            <button class="btn btn-success w-100 wow fadeInUp" data-wow-delay="0.3s">Create Member</button>
+        </form>
+
+    </div>
+</div>
+{% endblock %}

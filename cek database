@@ -1,0 +1,13 @@
+from app import app
+from models import db, User
+from flask_bcrypt import Bcrypt
+bcrypt = Bcrypt(app)
+
+with app.app_context():
+    user = User.query.first()
+    print("Username:", user.username)
+    print("Role:", user.role)
+    print("Password hash:", user.password)
+with app.app_context():
+    user = User.query.first()
+    print("Check password:", bcrypt.check_password_hash(user.password, "Panzerkampfwagen2405"))
