@@ -1,14 +1,16 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_bcrypt import Bcrypt
 import os
-from models import db, User, Session, Attendance
+from models import Division, db, User, Session, Attendance
 from datetime import datetime, date
 from ummalqura.hijri_date import HijriDate
 import json
 from werkzeug.utils import secure_filename
 from ai import call_chatbot_groq
+from flask_migrate import Migrate
+
 
 UPLOAD_FOLDER = 'static/uploads/profiles'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
@@ -24,7 +26,7 @@ bcrypt = Bcrypt(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
-
+migrate = Migrate(app, db)
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -116,6 +118,69 @@ def create_session():
         db.session.commit()
         return redirect(url_for('dashboard_admin'))
     return render_template('create_session.html')
+
+@app.route('/attendance', methods=['GET', 'POST'])
+@login_required
+def attendance():
+    if not current_user.can_mark_attendance:
+        abort(403)
+    attendance_records = Attendance.query.filter_by(
+        division_id=current_user.division_id
+    ).all()
+
+    if request.method == 'POST':
+        members = User.query.filter_by(division_id=current_user.division_id).all()
+        for member in members:
+            present = f"present_{member.id}" in request.form
+
+            record = Attendance.query.filter_by(
+                member_id=member.id,
+                date=date.today()
+            ).first()
+            if not record:
+                record = Attendance(member_id=member.id, division_id=member.division_id, date=datetime.date.today())
+            record.present = present
+            db.session.add(record)
+        db.session.commit()
+        flash("Attendance submitted", "success")
+        return redirect(url_for('attendance'))
+
+    members = User.query.filter_by(division_id=current_user.division_id).all()
+    return render_template('attendance.html', members=members, records=attendance_records)
+
+@app.route('/divisions/delete/<int:div_id>', methods=['POST'])
+@login_required
+def delete_division(div_id):
+    if current_user.role not in ['admin', 'ketua', 'pembina']:
+        abort(403)
+    
+    division = Division.query.get_or_404(div_id)
+    db.session.delete(division)
+    db.session.commit()
+    flash(f"Division '{division.name}' deleted!", "success")
+    return redirect(url_for('manage_division'))
+
+@app.route('/divisions', methods=['GET', 'POST'])
+@login_required
+def manage_divisions():
+    if current_user.role not in ['admin', 'ketua', 'pembina']:
+        abort(403)
+    
+    if request.method == 'POST':
+        name = request.form.get('name')
+        if name:
+            existing = Division.query.filter_by(name=name).first()
+            if existing:
+                flash("Division already exists!", "error")
+            else:
+                new_div = Division(name=name)
+                db.session.add(new_div)
+                db.session.commit()
+                flash(f"Division '{name}' created!", "success")
+        return redirect(url_for('manage_division'))
+    
+    divisions = Division.query.all()
+    return render_template('manage_division.html', divisions=divisions)
 
 @app.route('/attendance-mark', methods=['GET', 'POST'])
 @login_required
@@ -384,6 +449,55 @@ def chat():
 
 
     return jsonify({"reply": reply})
+
+@app.route('/division-management', methods=['GET', 'POST'])
+@login_required
+def division_management():
+
+    if current_user.role not in ['admin', 'ketua', 'pembina']:
+        abort(403)
+
+    divisions = Division.query.all()
+    users = User.query.filter_by(role='member').all()
+
+    if request.method == 'POST':
+        user_ids = request.form.getlist('user_ids')
+        division_id = request.form.get('division_id')
+        can_mark = request.form.get('can_mark_attendance')
+
+        if not user_ids or not division_id:
+            flash("Please select users and a division.", "danger")
+            return redirect(url_for('division_management'))
+
+        user_ids = [int(uid) for uid in user_ids]
+
+        if can_mark:
+            User.query.filter_by(
+                division_id=division_id,
+                can_mark_attendance=True
+            ).update({"can_mark_attendance": False})
+
+        for i, uid in enumerate(user_ids):
+            user = User.query.get(uid)
+            if user:
+                user.division_id = division_id
+                user.can_mark_attendance = True if (can_mark and i == 0) else False
+                db.session.add(user)
+
+        db.session.commit()
+
+        flash(f"Assigned {len(user_ids)} members to the division.", "success")
+        return redirect(url_for('division_management'))
+
+    return render_template(
+        'division_management.html',
+        divisions=divisions,
+        users=users
+    )
+
+@app.errorhandler(403)
+def forbidden(e):
+    return render_template('403.html'), 403
 
 if __name__ == '__main__':
     with app.app_context():

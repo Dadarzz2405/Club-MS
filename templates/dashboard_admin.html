@@ -20,13 +20,9 @@
     font-size: 0.8rem;
 }
 
-.islamic-icon {
-    margin-right: 6px;
-}
-
 .rohis-session {
-    background-color: #1976d2 !important;
-    border-color: #1976d2 !important;
+    background-color: #069006 !important;
+    border-color: #148607 !important;
 }
 
 .fc-day-today {
@@ -38,22 +34,16 @@
 {% block content %}
 <div class="mt-4">
     <div class="card shadow p-4">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h2 class="fw-bold mb-0">Admin Dashboard</h2>
-                <p class="text-muted">
-                    Welcome, {{ current_user.username }}
-                    <small class="text-capitalize">({{ current_user.role }})</small>
-                </p>
-            </div>
-        </div>
-
-        <hr>
+        <h2 class="fw-bold mb-3">Admin Dashboard</h2>
+        <p class="text-muted mb-4">
+            Welcome, {{ current_user.name }}
+            <small class="text-capitalize">({{ current_user.role }})</small>
+        </p>
 
         <div class="row g-4">
-            <div class="col-lg-4 col-md-6">
-                <a href="/create-session" class="text-decoration-none text-dark">
-                    <div class="p-4 text-center border rounded h-100">
+            <div class="col-lg-3 col-md-6">
+                <a href="{{ url_for('create_session') }}" class="text-decoration-none text-dark">
+                    <div class="p-4 text-center border rounded h-100 shadow-sm">
                         <i class="fa fa-3x fa-calendar-alt text-primary mb-3"></i>
                         <h5>Create Session</h5>
                         <p>Schedule new attendance sessions</p>
@@ -61,9 +51,9 @@
                 </a>
             </div>
 
-            <div class="col-lg-4 col-md-6">
-                <a href="/attendance-mark" class="text-decoration-none text-dark">
-                    <div class="p-4 text-center border rounded h-100">
+            <div class="col-lg-3 col-md-6">
+                <a href="{{ url_for('attendance_mark') }}" class="text-decoration-none text-dark">
+                    <div class="p-4 text-center border rounded h-100 shadow-sm">
                         <i class="fa fa-3x fa-check-circle text-primary mb-3"></i>
                         <h5>Mark Attendance</h5>
                         <p>Record member attendance</p>
@@ -71,22 +61,42 @@
                 </a>
             </div>
 
-            <div class="col-lg-4 col-md-6">
-                <a href="/member-list" class="text-decoration-none text-dark">
-                    <div class="p-4 text-center border rounded h-100">
+            <div class="col-lg-3 col-md-6">
+                <a href="{{ url_for('member_list') }}" class="text-decoration-none text-dark">
+                    <div class="p-4 text-center border rounded h-100 shadow-sm">
                         <i class="fa fa-3x fa-users text-primary mb-3"></i>
+                        <h5>Member List</h5>
+                        <p>See all members and roles</p>
+                    </div>
+                </a>
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+                <a href="{{ url_for('division_management') }}" class="text-decoration-none text-dark">
+                    <div class="p-4 text-center border rounded h-100 shadow-sm">
+                        <i class="fa fa-3x fa-users-cog text-primary mb-3"></i>
                         <h5>Member Management</h5>
-                        <p>Manage members and roles</p>
+                        <p>Assign divisions & attendance roles</p>
+                    </div>
+                </a>
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+                <a href="{{ url_for('manage_divisions') }}" class="text-decoration-none text-dark">
+                    <div class="p-4 text-center border rounded h-100 shadow-sm">
+                        <i class="fa fa-3x fa-sitemap text-primary mb-3"></i>
+                        <h5>Manage Divisions</h5>
+                        <p>Create, rename, or remove divisions</p>
                     </div>
                 </a>
             </div>
         </div>
 
         <div class="mt-5 text-center">
-            <a href="/attendance-history-admin" class="btn btn-outline-primary me-2">
+            <a href="{{ url_for('attendance_history_admin') }}" class="btn btn-outline-primary me-2">
                 📊 Member Attendance
             </a>
-            <a href="/attendance-history" class="btn btn-outline-secondary">
+            <a href="{{ url_for('attendance_history') }}" class="btn btn-outline-secondary">
                 📈 My Attendance
             </a>
         </div>
@@ -94,7 +104,7 @@
         <hr class="my-5">
 
         <div class="text-center">
-            <a href="/calendar" class="btn btn-primary btn-lg">
+            <a href="{{ url_for('calendar') }}" class="btn btn-primary btn-lg">
                 📅 View Rohis Calendar
             </a>
         </div>
@@ -103,4 +113,5 @@
 {% endblock %}
 
 {% block scripts %}
+{{ super() }}
 {% endblock %}

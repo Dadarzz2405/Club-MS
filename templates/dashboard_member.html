@@ -20,10 +20,6 @@
     font-size: 0.8rem;
 }
 
-.islamic-icon {
-    margin-right: 6px;
-}
-
 .rohis-session {
     background-color: #1976d2 !important;
     border-color: #1976d2 !important;
@@ -38,43 +34,44 @@
 {% block content %}
 <div class="mt-4">
     <div class="card shadow p-4">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h2 class="fw-bold mb-0">Member Dashboard</h2>
-                <p class="text-muted mb-0">
-                    Welcome, {{ current_user.username }}
-                </p>
-            </div>
-        </div>
-
-        <hr>
+        <h2 class="fw-bold mb-3">Member Dashboard</h2>
+        <p class="text-muted mb-4">Welcome, {{ current_user.name }}</p>
 
         <div class="row g-3">
             <div class="col-md-6">
-                <a href="/attendance-history"
-                   class="card text-decoration-none text-dark h-100 shadow-sm p-3 d-block">
-                    <h5 class="mb-1">📈 My Attendance History</h5>
-                    <p class="small text-muted mb-0">
-                        View your attendance per session
-                    </p>
+                <a href="{{ url_for('attendance_history') }}" class="text-decoration-none text-dark h-100 d-block">
+                    <div class="card shadow-sm p-3 text-center h-100">
+                        <h5 class="mb-1">📈 My Attendance History</h5>
+                        <p class="small text-muted mb-0">View your attendance per session</p>
+                    </div>
                 </a>
             </div>
 
             <div class="col-md-6">
-                <a href="/member-list"
-                   class="card text-decoration-none text-dark h-100 shadow-sm p-3 d-block">
-                    <h5 class="mb-1">👥 View Member List</h5>
-                    <p class="small text-muted mb-0">
-                        See other members
-                    </p>
+                <a href="{{ url_for('member_list') }}" class="text-decoration-none text-dark h-100 d-block">
+                    <div class="card shadow-sm p-3 text-center h-100">
+                        <h5 class="mb-1">👥 View Member List</h5>
+                        <p class="small text-muted mb-0">See other members</p>
+                    </div>
                 </a>
             </div>
+
+            {% if current_user.can_mark_attendance %}
+            <div class="col-md-6">
+                <a href="{{ url_for('attendance') }}" class="text-decoration-none text-dark h-100 d-block">
+                    <div class="card shadow-sm p-3 text-center h-100">
+                        <h5 class="mb-1">✅ Mark Attendance</h5>
+                        <p class="small text-muted mb-0">You can mark attendance for your division</p>
+                    </div>
+                </a>
+            </div>
+            {% endif %}
         </div>
 
         <hr class="my-5">
 
         <div class="text-center">
-            <a href="/calendar" class="btn btn-primary btn-lg">
+            <a href="{{ url_for('calendar') }}" class="btn btn-primary btn-lg">
                 📅 View Rohis Calendar
             </a>
         </div>

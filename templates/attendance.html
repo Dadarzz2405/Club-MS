@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>Attendance - {{ current_user.division.name if current_user.division else "No Division" }}</h2>
+
+<form method="POST">
+    <table border="1" cellpadding="5">
+        <thead>
+            <tr>
+                <th>Member</th>
+                <th>Present</th>
+                <th>Absent</th>
+                <th>Excused</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for member in members %}
+            {% set record = None %}
+            {% for r in records %}
+                {% if r.member_id == member.id %}
+                    {% set record = r %}
+                {% endif %}
+            {% endfor %}
+            <tr>
+                <td>{{ member.name }}</td>
+                <td>
+                    <input type="radio" name="status_{{ member.id }}" value="present"
+                        {% if record and record.status == 'present' %} checked {% endif %}>
+                </td>
+                <td>
+                    <input type="radio" name="status_{{ member.id }}" value="absent"
+                        {% if record and record.status == 'absent' %} checked {% endif %}>
+                </td>
+                <td>
+                    <input type="radio" name="status_{{ member.id }}" value="excused"
+                        {% if record and record.status == 'excused' %} checked {% endif %}>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <br>
+    <button type="submit">Submit Attendance</button>
+</form>
+
+{% endblock %}

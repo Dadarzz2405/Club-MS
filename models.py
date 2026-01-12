@@ -13,7 +13,8 @@ class User(db.Model, UserMixin):
     must_change_password = db.Column(db.Boolean, default=True)  # Force change
     class_name = db.Column(db.String(50))
     profile_picture = db.Column(db.String(255), default='default.png')
-
+    division_id = db.Column(db.Integer, db.ForeignKey('division.id', name='fk_user_division'), nullable=True)
+    can_mark_attendance = db.Column(db.Boolean, default=False)  # New field
 class Session(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(150))
@@ -25,3 +26,8 @@ class Attendance(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     status = db.Column(db.String(50))
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+class Division(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(150), unique=True, nullable=False)
+    members = db.relationship('User', backref='division', lazy=True)
