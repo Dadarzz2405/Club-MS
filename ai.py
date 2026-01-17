@@ -1,18 +1,9 @@
-from groq import Groq
-from dotenv import load_dotenv
 import os
+from groq import Groq
 
-# Load environment variables
-load_dotenv()
-
-GROQ_API_KEY = os.getenv("API_KEY")
-
-if not GROQ_API_KEY:
-    raise RuntimeError("API_KEY not found. Check your .env file.")
-
-client = Groq(api_key=GROQ_API_KEY)
-
+# =========================
 # System prompt
+# =========================
 SYSTEM_PROMPT = """
 You are an Islamic educational assistant for a school Rohis organization.
 Explain concepts clearly and respectfully.
@@ -33,7 +24,6 @@ Valid page names:
 dashboard, attendance, members, login
 """
 
-# Safe route mapping (AI never sends URLs)
 ROUTE_MAP = {
     "dashboard": "/dashboard",
     "attendance": "/attendance",
@@ -41,8 +31,19 @@ ROUTE_MAP = {
     "login": "/login"
 }
 
+# =========================
+# Groq client (lazy init)
+# =========================
+def get_groq_client():
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        raise RuntimeError("GROQ_API_KEY is not set")
+    return Groq(api_key=api_key)
+
+# =========================
+# Main chatbot function
+# =========================
 def call_chatbot_groq(message: str) -> dict:
-    # Basic input guard
     if not message or len(message) > 500:
         return {
             "action": "chat",
@@ -50,6 +51,8 @@ def call_chatbot_groq(message: str) -> dict:
         }
 
     try:
+        client = get_groq_client()
+
         completion = client.chat.completions.create(
             model="openai/gpt-oss-120b",
             messages=[
@@ -62,23 +65,15 @@ def call_chatbot_groq(message: str) -> dict:
 
         content = completion.choices[0].message.content.strip()
 
-        # Handle navigation intent
         if content.startswith("NAVIGATE:"):
             page = content.replace("NAVIGATE:", "").strip().lower()
             route = ROUTE_MAP.get(page)
-
             if route:
                 return {
                     "action": "navigate",
                     "redirect": route
                 }
-            else:
-                return {
-                    "action": "chat",
-                    "message": "I'm sorry, I can't navigate to that page."
-                }
 
-        # Normal chatbot response
         return {
             "action": "chat",
             "message": content
@@ -89,4 +84,3 @@ def call_chatbot_groq(message: str) -> dict:
             "action": "chat",
             "message": "I'm sorry, I can't respond right now. Please try again later."
         }
-
