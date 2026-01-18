@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+    .inline-form {
+        display: inline;
+    }
+</style>
+
+<h2>Manage PICs</h2>
+
+<!-- Create new PIC -->
+<form method="POST">
+    <input type="text" name="name" placeholder="PIC name" required>
+    <button type="submit">Add PIC</button>
+</form>
+
+<hr>
+
+<!-- List existing PICs -->
+<table border="1" cellpadding="5">
+    <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Action</th>
+    </tr>
+    {% for pic in pics %}
+    <tr>
+        <td>{{ pic.id }}</td>
+        <td>{{ pic.name }}</td>
+        <td>
+            <form method="POST" action="{{ url_for('delete_pic', id=pic.id) }}" class="inline-form">
+                <button type="submit" onclick="return confirm('Are you sure?')">Delete</button>
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+
+{% endblock %}

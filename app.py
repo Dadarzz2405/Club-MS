@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_bcrypt import Bcrypt
 import os
-from models import Division, db, User, Session, Attendance
+from models import Pic, db, User, Session, Attendance
 from datetime import datetime, date
 from ummalqura.hijri_date import HijriDate
 import json
@@ -31,14 +31,60 @@ migrate = Migrate(app, db)
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-def can_mark_attendance(user, target_division_id):
+def can_mark_attendance(user, target_pic_id):
     if user.role == "admin":
         return True
-    if user.can_mark_attendance and user.division_id == target_division_id:
+    if user.can_mark_attendance and user.pic_id == target_pic_id:
         return True
     
     return False
 
+INITIAL_PASSWORD = "rohis2025"
+
+members = [
+    {"email": "muhammad.syathir@gdajogja.sch.id", "name": "Muhammad Syathir", "class": "10-D", "role": "admin"},
+    {"email": "aqillah.hasanah@gdajogja.sch.id", "name": "Aqillah Hasanah", "class": "10-C", "role": "admin"},
+    {"email": "ghozy.suciawan@gdajogja.sch.id", "name": "Ghozy Suciawan", "class": "10-D", "role": "ketua"},
+    {"email": "haidar.nasirodin@gdajogja.sch.id", "name": "Haidar Nasirodin", "class": "10-A", "role": "admin"},
+    {"email": "khoirun.istiqomah@gdajogja.sch.id", "name": "Khoirun Istiqomah", "class": "10-C", "role": "admin"},
+    {"email": "mufadilla.legisa@gdajogja.sch.id", "name": "Mufadilla Legisa", "class": "10-B", "role": "admin"},
+    {"email": "rauf.akmal@gdajogja.sch.id", "name": "Rauf Akmal", "class": "10-A", "role": "admin"},
+    {"email": "rifqy.daaris@gdajogja.sch.id", "name": "Rifqy Daaris", "class": "10-A", "role": "admin"},
+    {"email": "aiesha.makaila@gdajogja.sch.id", "name": "Aiesha Makaila", "class": "10-D", "role": "member"},
+    {"email": "arya.rahadian@gdajogja.sch.id", "name": "Arya Rahadian", "class": "10-B", "role": "member"},
+    {"email": "aulia.meilinda@gdajogja.sch.id", "name": "Aulia Meilinda", "class": "10-A", "role": "member"},
+    {"email": "devone.nalandra@gdajogja.sch.id", "name": "Devone Nalandra", "class": "10-B", "role": "member"},
+    {"email": "dzakya.prasetya@gdajogja.sch.id", "name": "Dzakya Prasetya", "class": "10-A", "role": "member"},
+    {"email": "evan.farizqi@gdajogja.sch.id", "name": "Evan Farizqi", "class": "10-B", "role": "member"},
+    {"email": "faiq.asyam@gdajogja.sch.id", "name": "Faiq Asyam", "class": "10-A", "role": "member"},
+    {"email": "hammam.prasetyo@gdajogja.sch.id", "name": "Hammam Prasetyo", "class": "10-B", "role": "member"},
+    {"email": "husein.syamil@gdajogja.sch.id", "name": "Husein Syamil", "class": "10-C", "role": "member"},
+    {"email": "irfan.ansari@gdajogja.sch.id", "name": "Irfan Ansari", "class": "10-B", "role": "member"},
+    {"email": "kemas.tamada@gdajogja.sch.id", "name": "Kemas Tamada", "class": "10-D", "role": "member"},
+    {"email": "muhammad.ismoyo@gdajogja.sch.id", "name": "Muhammad Ismoyo", "class": "10-D", "role": "member"},
+    {"email": "nabila.patricia@gdajogja.sch.id", "name": "Nabila Patricia", "class": "10-A", "role": "member"},
+    {"email": "naufal.syuja@gdajogja.sch.id", "name": "Naufal Syuja", "class": "10-D", "role": "member"},
+    {"email": "tengku.harahap@gdajogja.sch.id", "name": "Tengku Harahap", "class": "10-B", "role": "member"},
+    {"email": "zahra.layla@gdajogja.sch.id", "name": "Zahra Layla", "class": "10-D", "role": "member"},
+    {"email": "zalfa.zahira@gdajogja.sch.id", "name": "Zalfa Zahira", "class": "10-C", "role": "member"}
+]
+
+def seed_members():
+    for m in members:
+        hashed_pw = bcrypt.generate_password_hash(INITIAL_PASSWORD).decode('utf-8')  
+        user = User(
+            email=m["email"],
+            password=hashed_pw,
+            name=m["name"],
+            class_name=m["class"],
+            role=m["role"],
+            must_change_password=True
+        )
+        db.session.add(user)
+    db.session.commit()
+    print("✅ All members seeded!")
+
+# ...existing code...
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -134,8 +180,8 @@ from datetime import date
 def attendance():
     if not current_user.can_mark_attendance and current_user.role != 'admin':
         abort(403)
-    # load members for the current user's division
-    members = User.query.filter_by(division_id=current_user.division_id).all()
+    # load members for the current user's pic
+    members = User.query.filter_by(pic_id=current_user.pic_id).all()
 
     # load available sessions and determine selected session
     sessions = Session.query.order_by(Session.date.desc()).all()
@@ -167,7 +213,8 @@ def attendance():
                 record = Attendance(
                     session_id=selected_session_id,
                     user_id=member.id,
-                    status=status
+                    status=status,
+                    timestamp=datetime.now()
                 )
                 db.session.add(record)
             else:
@@ -203,50 +250,50 @@ def attendance():
         selected_session_id=selected_session_id
     )
 
-@app.route('/divisions', methods=['GET', 'POST'])
+@app.route('/pics', methods=['GET', 'POST'])
 @login_required
-def manage_divisions():
+def manage_pics():
     if current_user.role not in ['admin', 'ketua', 'pembina']:
         abort(403)
 
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
         if not name:
-            flash("Division name cannot be empty", "error")
-            return redirect(url_for('manage_divisions'))
+            flash("PIC name cannot be empty", "error")
+            return redirect(url_for('manage_pics'))
 
-        existing = Division.query.filter_by(name=name).first()
+        existing = Pic.query.filter_by(name=name).first()
         if existing:
-            flash("Division already exists!", "error")
+            flash("PIC already exists!", "error")
         else:
-            new_div = Division(name=name)
-            db.session.add(new_div)
+            new_pic = Pic(name=name)
+            db.session.add(new_pic)
             db.session.commit()
-            flash(f"Division '{name}' created!", "success")
+            flash(f"PIC '{name}' created!", "success")
 
-        return redirect(url_for('manage_divisions'))
+        return redirect(url_for('manage_pics'))
 
-    divisions = Division.query.all()
-    return render_template('manage_division.html', divisions=divisions)
+    pics = Pic.query.all()
+    return render_template('manage_pic.html', pics=pics)
 
 
-@app.route('/division/delete/<int:id>', methods=['POST'])
+@app.route('/pic/delete/<int:id>', methods=['POST'])
 @login_required
-def delete_division(id):
+def delete_pic(id):
     if current_user.role != 'admin':
         abort(403)
 
-    division = Division.query.get_or_404(id)
+    pic = Pic.query.get_or_404(id)
 
-    for user in division.members:
-        user.division_id = None
+    for user in pic.members:
+        user.pic_id = None
         user.can_mark_attendance = False  # 🔥 IMPORTANT
 
-    db.session.delete(division)
+    db.session.delete(pic)
     db.session.commit()
 
-    flash("Division deleted and permissions revoked", "success")
-    return redirect(url_for('manage_divisions'))
+    flash("PIC deleted and permissions revoked", "success")
+    return redirect(url_for('manage_pics'))
 
 @app.route('/attendance-mark', methods=['GET', 'POST'])
 @login_required
@@ -493,7 +540,7 @@ def api_dashboard_calendar():
             })
 
         current = current.fromordinal(current.toordinal() + 1)
-    return calendar_events
+    return jsonify(calendar_events)
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -516,55 +563,55 @@ def chat():
 
     return jsonify({"reply": reply})
 
-@app.route('/division-management', methods=['GET', 'POST'])
+@app.route('/pic-management', methods=['GET', 'POST'])
 @login_required
-def division_management():
+def pic_management():
 
     if current_user.role not in ['admin', 'ketua', 'pembina']:
         abort(403)
 
-    divisions = Division.query.all()
+    pics = Pic.query.all()
     users = User.query.filter_by(role='member').all()
 
     if request.method == 'POST':
         user_ids = request.form.getlist('user_ids')
-        division_id = request.form.get('division_id')
+        pic_id = request.form.get('pic_id')
         marker_id = request.form.get('marker_id')
 
-        if not user_ids or not division_id:
-            flash("Please select users and a division.", "danger")
-            return redirect(url_for('division_management'))
+        if not user_ids or not pic_id:
+            flash("Please select users and a PIC.", "danger")
+            return redirect(url_for('pic_management'))
 
         try:
             user_ids = [int(uid) for uid in user_ids]
-            division_id = int(division_id)
+            pic_id = int(pic_id)
         except (ValueError, TypeError):
             flash("Invalid input values.", "danger")
-            return redirect(url_for('division_management'))
+            return redirect(url_for('pic_management'))
 
         try:
             marker_id = int(marker_id) if marker_id else None
         except (ValueError, TypeError):
             marker_id = None
 
-        # Ensure only one user in this division has marking permission
-        User.query.filter_by(division_id=division_id, can_mark_attendance=True).update({"can_mark_attendance": False})
+        # Ensure only one user in this pic has marking permission
+        User.query.filter_by(pic_id=pic_id, can_mark_attendance=True).update({"can_mark_attendance": False})
 
         for uid in user_ids:
             user = User.query.get(uid)
             if user:
-                user.division_id = division_id
+                user.pic_id = pic_id
                 user.can_mark_attendance = True if (marker_id and uid == marker_id) else False
                 db.session.add(user)
 
         db.session.commit()
 
-        flash(f"Assigned {len(user_ids)} members to the division.", "success")
-        return redirect(url_for('division_management'))
+        flash(f"Assigned {len(user_ids)} members to the PIC.", "success")
+        return redirect(url_for('pic_management'))
 
     return render_template(
-        'division_management.html',
-        divisions=divisions,
+        'pic_management.html',
+        pics=pics,
         users=users
     )
 
@@ -574,6 +621,9 @@ def forbidden(e):
 
 if __name__ == '__main__':
     with app.app_context():
+        db.drop_all()
         db.create_all()
+        if User.query.count() == 0:
+            seed_members()
     port = int(os.environ.get("PORT", 5000)) 
     app.run(host="0.0.0.0", port=port, debug=True)

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Division Management — Rohis{% endblock %}
+{% block title %}PIC Management — Rohis{% endblock %}
 
 {% block content %}
 <div class="mt-4">
@@ -8,26 +8,26 @@
 
     <form method="POST">
         <div class="mb-3">
-            <label class="form-label">Select Division</label>
-            <select name="division_id" class="form-select" required>
-                {% for d in divisions %}
-                    <option value="{{ d.id }}">{{ d.name }}</option>
+            <label for="pic_id" class="form-label">Select PIC</label>
+            <select id="pic_id" name="pic_id" class="form-select" required>
+                {% for p in pics %}
+                    <option value="{{ p.id }}">{{ p.name }}</option>
                 {% endfor %}
             </select>
         </div>
 
         <div class="mb-3">
-            <label class="form-label">Select Members (hold Ctrl / Cmd to select multiple)</label>
-            <select name="user_ids" class="form-select" multiple size="8" required>
+            <label for="user_ids" class="form-label">Select Members (hold Ctrl / Cmd to select multiple)</label>
+            <select id="user_ids" name="user_ids" class="form-select" multiple size="8" required>
                 {% for user in users %}
-                    <option value="{{ user.id }}">{{ user.name }} — {{ user.division.name if user.division else 'No Division' }}</option>
+                    <option value="{{ user.id }}">{{ user.name }} — {{ user.pic.name if user.pic else 'No PIC' }}</option>
                 {% endfor %}
             </select>
         </div>
 
         <div class="mb-3">
-            <label class="form-label">Choose one member to be able to mark attendance (optional)</label>
-            <select name="marker_id" class="form-select">
+            <label for="marker_id" class="form-label">Choose one member to be able to mark attendance (optional)</label>
+            <select id="marker_id" name="marker_id" class="form-select">
                 <option value="">-- No marker --</option>
                 {% for user in users %}
                     <option value="{{ user.id }}">{{ user.name }}</option>
@@ -46,7 +46,7 @@
             <tr>
                 <th>Name</th>
                 <th>Role</th>
-                <th>Division</th>
+                <th>PIC</th>
                 <th>Permission</th>
             </tr>
         </thead>
@@ -55,7 +55,7 @@
             <tr>
                 <td>{{ u.name }}</td>
                 <td>{{ u.role }}</td>
-                <td>{{ u.division.name if u.division else '-' }}</td>
+                <td>{{ u.pic.name if u.pic else '-' }}</td>
                 <td>{{ '✅' if u.can_mark_attendance else '❌' }}</td>
             </tr>
             {% endfor %}

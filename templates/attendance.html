@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h2>Attendance - {{ current_user.division.name if current_user.division else "No Division" }}</h2>
+<h2>Attendance - {{ current_user.pic.name if current_user.pic else "No PIC" }}</h2>
 
 <form method="POST">
     <label for="session_id">Session:</label>
@@ -35,16 +35,16 @@
             <tr>
                 <td>{{ member.name }}</td>
                 <td>
-                    <input type="radio" name="status_{{ member.id }}" value="present"
-                        {% if record and record.status == 'present' %} checked {% endif %}>
+                    <label><input type="radio" name="status_{{ member.id }}" value="present" required
+                        {% if record and record.status == 'present' %} checked {% endif %}> Present</label>
                 </td>
                 <td>
-                    <input type="radio" name="status_{{ member.id }}" value="absent"
-                        {% if record and record.status == 'absent' %} checked {% endif %}>
+                    <label><input type="radio" name="status_{{ member.id }}" value="absent" required
+                        {% if record and record.status == 'absent' %} checked {% endif %}> Absent</label>
                 </td>
                 <td>
-                    <input type="radio" name="status_{{ member.id }}" value="excused"
-                        {% if record and record.status == 'excused' %} checked {% endif %}>
+                    <label><input type="radio" name="status_{{ member.id }}" value="excused" required
+                        {% if record and record.status == 'excused' %} checked {% endif %}> Excused</label>
                 </td>
             </tr>
             {% endfor %}
