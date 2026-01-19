@@ -407,8 +407,11 @@ def attendance_mark():
 def attendance():
     if current_user.role in ['admin', 'ketua', 'pembina']:
         return redirect(url_for('attendance_mark'))
-    if not current_user.can_mark_attendance:
+    
+    is_pic = current_user.can_mark_attendance
+    if not is_pic and current_user.role != 'member':
         abort(403)
+    
     if request.method == 'POST':
         session_id = request.form.get('session_id')
         if not session_id:
@@ -418,26 +421,39 @@ def attendance():
         if session.is_locked:
             flash('Session is locked', 'error')
             return redirect(url_for('attendance'))
-        if not can_mark_attendance(current_user, session.pic_id):
-            abort(403)
-        members = User.query.filter_by(pic_id=current_user.id).all()
+        
+        if is_pic:
+            if not can_mark_attendance(current_user, session.pic_id):
+                abort(403)
+            members = User.query.filter_by(pic_id=current_user.id).all()
+        else:
+            members = User.query.filter(User.role == 'member').all()
+        
+        wib = timezone(timedelta(hours=7))
         for member in members:
             status = request.form.get(f'status_{member.id}')
             if status:
-                existing = Attendance.query.filter_by(session_id=session_id, user_id=member.id).first()
+                existing = Attendance.query.filter_by(session_id=session_id, user_id=member.id, attendance_type='regular').first()
                 if not existing:
                     attendance = Attendance(session_id=session_id, user_id=member.id, status=status, attendance_type='regular', timestamp=datetime.now(wib))
                     db.session.add(attendance)
         db.session.commit()
         flash('Attendance saved', 'success')
         return redirect(url_for('attendance'))
+    
     # GET
     selected_session_id = request.args.get('session_id')
-    sessions = Session.query.filter_by(pic_id=current_user.id).all()
-    members = User.query.filter_by(pic_id=current_user.id).all()
+    
+    if is_pic:
+        sessions = Session.query.filter_by(pic_id=current_user.id).all()
+        members = User.query.filter_by(pic_id=current_user.id).all()
+    else:
+        sessions = Session.query.all()
+        members = User.query.filter(User.role == 'member').all()
+    
     attendance_map = {}
     if selected_session_id:
-        attendances = Attendance.query.filter_by(session_id=selected_session_id).all()
+        attendances = Attendance.query.filter_by(session_id=selected_session_id, attendance_type='regular').all()
         for a in attendances:
             attendance_map[a.user_id] = a.status
     return render_template('attendance.html', sessions=sessions, members=members, selected_session_id=selected_session_id, attendance_map=attendance_map)
