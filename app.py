@@ -178,11 +178,13 @@ def attendance_core():
 
     sessions = Session.query.order_by(Session.date.desc()).all()
     users = User.query.filter(User.role.in_(["admin", "ketua"])).all()
+    core_users = users
 
     return render_template(
         "attendance_mark_core.html",
         sessions=sessions,
-        users=users
+        users=users,
+        core_users=core_users
     )
 
 @app.route("/api/attendance/core", methods=["POST"])
