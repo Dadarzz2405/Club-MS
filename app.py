@@ -152,7 +152,8 @@ def api_attendance():
 
     record = Attendance.query.filter_by(
         session_id=session_id,
-        user_id=user_id
+        user_id=user_id,
+        attendance_type='regular'
     ).first()
 
     if record:
@@ -162,6 +163,7 @@ def api_attendance():
         session_id=session_id,
         user_id=user_id,
         status=status,
+        attendance_type='regular',
         timestamp=datetime.utcnow()
     )
 
@@ -420,7 +422,7 @@ def attendance():
             if status:
                 existing = Attendance.query.filter_by(session_id=session_id, user_id=member.id).first()
                 if not existing:
-                    attendance = Attendance(session_id=session_id, user_id=member.id, status=status)
+                    attendance = Attendance(session_id=session_id, user_id=member.id, status=status, attendance_type='regular')
                     db.session.add(attendance)
         db.session.commit()
         flash('Attendance saved', 'success')
