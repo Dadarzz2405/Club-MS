@@ -7,7 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const messages = document.getElementById("chat-messages");
 
   if (!chatToggle || !chatBox || !sendBtn || !input || !messages) {
-    console.error("Chat UI elements missing");
+    // Silently fail if elements are not present (e.g. on login page)
     return;
   }
 

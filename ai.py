@@ -23,19 +23,20 @@ dashboard, attendance, members, login
 """
 
 ROUTE_MAP = {
-    "dashboard": "/dashboard",
+    "dashboard": "/",
     "attendance": "/attendance",
-    "members": "/members",
+    "members": "/member-list",
     "login": "/login",
 }
 
-NAV_REGEX = re.compile(r"^navigate\s*:\s*(\w+)$", re.IGNORECASE)
+NAV_REGEX = re.compile(r"^NAVIGATE\s*:\s*(\w+)$", re.IGNORECASE)
 
 
 def get_groq_client():
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
-        raise RuntimeError("GROQ_API_KEY missing")
+        # Fallback to a placeholder or handle it gracefully if not in autonomous mode
+        return None
     return Groq(api_key=api_key)
 
 
@@ -48,9 +49,14 @@ def call_chatbot_groq(message: str) -> dict:
 
     try:
         client = get_groq_client()
+        if not client:
+             return {
+                "action": "chat",
+                "message": "Chat service is currently unavailable (API key missing)."
+            }
 
         completion = client.chat.completions.create(
-            model="openai/gpt-oss-120b",  # lower latency, enough for this task
+            model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT.strip()},
                 {"role": "user", "content": message.strip()}

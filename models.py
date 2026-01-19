@@ -28,8 +28,7 @@ class Attendance(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     status = db.Column(db.String(50), nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    attendance_type = db.Column(db.String(50), default='regular')
-    attendance_type = db.Column(db.String(20), nullable=False)
+    attendance_type = db.Column(db.String(50), default='regular', nullable=False)
     __table_args__ = (
         db.UniqueConstraint('session_id', 'user_id', name='unique_session_user'),
     )
