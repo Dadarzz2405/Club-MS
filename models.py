@@ -29,6 +29,10 @@ class Attendance(db.Model):
     status = db.Column(db.String(50), nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     attendance_type = db.Column(db.String(50), default='regular', nullable=False)
+    
+    session = db.relationship('Session', backref='attendances')
+    user = db.relationship('User', backref='attendances')
+
     __table_args__ = (
         db.UniqueConstraint('session_id', 'user_id', name='unique_session_user'),
     )

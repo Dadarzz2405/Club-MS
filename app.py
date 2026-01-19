@@ -347,18 +347,12 @@ def delete_pic(id):
 @app.route('/attendance-history')
 @login_required
 def attendance_history():
-
-    records = db.session.query(
-        Attendance,
-        Session.name.label('session_name'),
-        Session.date.label('session_date')
-    ).join(Session, Attendance.session_id == Session.id)\
-     .filter(Attendance.user_id == current_user.id).all()
+    records = Attendance.query.filter_by(user_id=current_user.id).all()
 
     summary = {
-        'present': sum(1 for r, _, _ in records if r.status=='present'),
-        'absent': sum(1 for r, _, _ in records if r.status=='absent'),
-        'excused': sum(1 for r, _, _ in records if r.status=='excused')
+        'present': sum(1 for r in records if r.status=='present'),
+        'absent': sum(1 for r in records if r.status=='absent'),
+        'excused': sum(1 for r in records if r.status=='excused')
     }
 
     return render_template('attendance_history.html', records=records, summary=summary)
