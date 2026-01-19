@@ -5,7 +5,8 @@ __pycache__/
 
 # C extensions
 *.so
-
+# Ignore __pycache__ directories recursively found in the tree.
+**/__pycache__/
 # Distribution / packaging
 .Python
 build/
