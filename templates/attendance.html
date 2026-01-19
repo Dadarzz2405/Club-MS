@@ -1,57 +1,80 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h2>Attendance - {{ current_user.pic.name if current_user.pic else "No PIC" }}</h2>
+<h2>
+    Attendance —
+    {{ current_user.pic.name if current_user.pic else "No PIC" }}
+</h2>
 
 <form method="POST">
     <label for="session_id">Session:</label>
-    <select name="session_id" id="session_id">
+    <select name="session_id" id="session_id" required>
         {% if sessions %}
             {% for s in sessions %}
-                <option value="{{ s.id }}" {% if selected_session_id and s.id == selected_session_id %} selected {% endif %}>{{ s.name }} - {{ s.date }}</option>
+                <option value="{{ s.id }}"
+                    {% if selected_session_id and s.id == selected_session_id %}selected{% endif %}>
+                    {{ s.name }} — {{ s.date }}
+                </option>
             {% endfor %}
         {% else %}
             <option value="">No sessions available</option>
         {% endif %}
     </select>
+
     <br><br>
-    <table border="1" cellpadding="5">
+
+    <table border="1" cellpadding="6" cellspacing="0">
         <thead>
             <tr>
                 <th>Member</th>
                 <th>Present</th>
+                <th>Late</th>
                 <th>Absent</th>
                 <th>Excused</th>
             </tr>
         </thead>
+
         <tbody>
             {% for member in members %}
-            {% set record = None %}
-            {% for r in records %}
-                {% if r.user_id == member.id %}
-                    {% set record = r %}
-                {% endif %}
-            {% endfor %}
+            {% set status = attendance_map.get(member.id) %}
             <tr>
                 <td>{{ member.name }}</td>
-                <td>
-                    <label><input type="radio" name="status_{{ member.id }}" value="present" required
-                        {% if record and record.status == 'present' %} checked {% endif %}> Present</label>
+
+                <td align="center">
+                    <input type="radio"
+                           name="status_{{ member.id }}"
+                           value="present"
+                           {% if status == "present" %}checked{% endif %}>
                 </td>
-                <td>
-                    <label><input type="radio" name="status_{{ member.id }}" value="absent" required
-                        {% if record and record.status == 'absent' %} checked {% endif %}> Absent</label>
+
+                <td align="center">
+                    <input type="radio"
+                           name="status_{{ member.id }}"
+                           value="late"
+                           {% if status == "late" %}checked{% endif %}>
                 </td>
-                <td>
-                    <label><input type="radio" name="status_{{ member.id }}" value="excused" required
-                        {% if record and record.status == 'excused' %} checked {% endif %}> Excused</label>
+
+                <td align="center">
+                    <input type="radio"
+                           name="status_{{ member.id }}"
+                           value="absent"
+                           {% if status == "absent" or not status %}checked{% endif %}>
+                </td>
+
+                <td align="center">
+                    <input type="radio"
+                           name="status_{{ member.id }}"
+                           value="excused"
+                           {% if status == "excused" %}checked{% endif %}>
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+
     <br>
-    <button type="submit">Submit Attendance</button>
+
+    <button type="submit">Save Attendance</button>
 </form>
 
 {% endblock %}

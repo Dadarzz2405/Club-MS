@@ -1,4 +1,6 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, abort
+from scipy import io
+from utils import can_mark_attendance
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, abort, Response, Blueprint
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_bcrypt import Bcrypt
@@ -10,7 +12,10 @@ import json
 from werkzeug.utils import secure_filename
 from ai import call_chatbot_groq
 from flask_migrate import Migrate
-
+import csv
+from io import TextIOWrapper, StringIO, BytesIO
+from docx import Document
+from formatter import format_attendance
 
 UPLOAD_FOLDER = 'static/uploads/profiles'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
@@ -27,23 +32,17 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 migrate = Migrate(app, db)
+
+attendance_bp = Blueprint("attendance", __name__)
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-def can_mark_attendance(user, target_pic_id):
-    if user.role == "admin":
-        return True
-    if user.can_mark_attendance and user.pic_id == target_pic_id:
-        return True
-    
-    return False
-
-# ...existing code...
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        email = request.form['email']
+        email = request.form['email'].strip().lower()
         password = request.form['password']
         user = User.query.filter_by(email=email).first()
         if user and bcrypt.check_password_hash(user.password, password):
@@ -121,89 +120,68 @@ def create_session():
     if request.method == 'POST':
         name = request.form['name']
         date = request.form['date']
+        pic_id = request.form.get('pic_id')
 
-        new_session = Session(name=name, date=date)
+        new_session = Session(naame=name, date=date, pic_id=pic_id)
         db.session.add(new_session)
         db.session.commit()
         return redirect(url_for('dashboard_admin'))
-    return render_template('create_session.html')
+    pics = Pic.query.all()
+    return render_template('create_session.html', pics=pics)
 
 from datetime import date
-
-@app.route('/attendance', methods=['GET', 'POST'])
+@app.route('/api/attendance', methods=['POST'])
 @login_required
-def attendance():
-    if not current_user.can_mark_attendance and current_user.role != 'admin':
-        abort(403)
-    # load members for the current user's pic
-    members = User.query.filter_by(pic_id=current_user.pic_id).all()
+def api_attendance():
+    data = request.get_json()
 
-    # load available sessions and determine selected session
-    sessions = Session.query.order_by(Session.date.desc()).all()
-    selected_session_id = None
-    if request.method == 'POST':
-        # session id should come from the form
-        session_id_raw = request.form.get('session_id')
-        try:
-            selected_session_id = int(session_id_raw) if session_id_raw else None
-        except (ValueError, TypeError):
-            selected_session_id = None
+    session_id = data.get("session_id")
+    user_id = data.get("user_id")
+    status = data.get("status")
 
-        if not selected_session_id:
-            flash('Please select a valid session.', 'error')
-            return redirect(url_for('attendance'))
+    if not all([session_id, user_id, status]):
+        return jsonify({"error": "invalid_data"}), 400
 
-        for member in members:
-            status = request.form.get(f"status_{member.id}")
+    session = Session.query.get_or_404(session_id)
 
-            if not status:
-                continue
+    if session.is_locked:
+        return jsonify({"error": "session_locked"}), 403
 
-            record = Attendance.query.filter_by(
-                session_id=selected_session_id,
-                user_id=member.id
-            ).first()
+    if not can_mark_attendance(current_user, session.pic_id):
+        return jsonify({"error": "forbidden"}), 403
 
-            if not record:
-                record = Attendance(
-                    session_id=selected_session_id,
-                    user_id=member.id,
-                    status=status,
-                    timestamp=datetime.now()
-                )
-                db.session.add(record)
-            else:
-                record.status = status
 
-        db.session.commit()
-        flash("Attendance saved successfully", "success")
-        return redirect(url_for('attendance', session_id=selected_session_id))
+    record = Attendance.query.filter_by(
+        session_id=session_id,
+        user_id=user_id
+    ).first()
 
-    # GET: determine which session to show (query param or latest)
-    if request.args.get('session_id'):
-        try:
-            selected_session_id = int(request.args.get('session_id'))
-        except (ValueError, TypeError):
-            selected_session_id = None
+    if record:
+        return jsonify({"error": "already_marked"}), 409
 
-    if not selected_session_id and sessions:
-        try:
-            selected_session_id = sessions[0].id
-        except Exception:
-            selected_session_id = None
-
-    # load attendance records for the selected session
-    records = []
-    if selected_session_id:
-        records = Attendance.query.filter_by(session_id=selected_session_id).all()
-
-    return render_template(
-        'attendance.html',
-        members=members,
-        sessions=sessions,
-        records=records,
-        selected_session_id=selected_session_id
+    attendance = Attendance(
+        session_id=session_id,
+        user_id=user_id,
+        status=status,
+        timestamp=datetime.utcnow()
     )
+
+    db.session.add(attendance)
+    db.session.commit()
+
+    return jsonify({"success": True})
+
+@app.route("/api/session/<int:session_id>/lock", methods=["POST"])
+@login_required
+def lock_session(session_id):
+    if current_user.role not in ["admin", "ketua", "pembina"]:
+        return jsonify({"error": "forbidden"}), 403
+
+    session = Session.query.get_or_404(session_id)
+    session.is_locked = True
+    db.session.commit()
+
+    return jsonify({"locked": True})
 
 @app.route('/pics', methods=['GET', 'POST'])
 @login_required
@@ -231,6 +209,54 @@ def manage_pics():
     pics = Pic.query.all()
     return render_template('manage_pic.html', pics=pics)
 
+@app.route("/export/attendance/<int:session_id>")
+@login_required
+def export_attendance_csv(session_id):
+    if current_user.role not in ["admin", "ketua", "pembina"]:
+        abort(403)
+
+    session = Session.query.get_or_404(session_id)
+
+    records = (
+        db.session.query(
+            Attendance,
+            User.name,
+            User.email
+        )
+        .join(User, Attendance.user_id == User.id)
+        .filter(Attendance.session_id == session_id)
+        .all()
+    )
+
+    # Prepare text for formatter
+    text_input = f"Session: {session.name} on {session.date}\n"
+    for attendance, name, email in records:
+        text_input += f"{name} | {attendance.status} | {attendance.timestamp}\n"
+
+    # Format with AI
+    formatted = format_attendance(text_input)
+
+    # Create DOCX
+    doc = Document()
+    doc.add_heading(f'Attendance Report: {session.name}', 0)
+    doc.add_paragraph(f'Date: {session.date}')
+    doc.add_paragraph('Formatted Records:')
+    doc.add_paragraph(formatted)
+
+    # Save to BytesIO
+    bio = BytesIO()
+    doc.save(bio)
+    bio.seek(0)
+
+    filename = f"attendance_session_{session.id}.docx"
+
+    return Response(
+        bio,
+        mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}"
+        }
+    )
 
 @app.route('/pic/delete/<int:id>', methods=['POST'])
 @login_required
@@ -249,47 +275,6 @@ def delete_pic(id):
 
     flash("PIC deleted and permissions revoked", "success")
     return redirect(url_for('manage_pics'))
-
-@app.route('/attendance-mark', methods=['GET', 'POST'])
-@login_required
-def attendance_mark():
-    if current_user.role not in ['admin', 'ketua', 'pembina']:
-        return redirect(url_for('invalid_credential'))
-    
-    sessions = Session.query.all()
-    members = User.query.filter_by(role='member').all()  
-
-    if request.method == 'POST':
-        try:
-            session_id = int(request.form['session_id'])
-            
-            from datetime import datetime
-            for user in members:
-                status = request.form.get(f'status_{user.id}')
-                if status in ['present', 'absent', 'excused']: 
-                    existing_attendance = Attendance.query.filter_by(
-                        session_id=session_id, 
-                        user_id=user.id
-                    ).first()
-                    
-                    if existing_attendance:
-                        existing_attendance.status = status
-                    else:
-                        new_attendance = Attendance(
-                            session_id=session_id,
-                            user_id=user.id,
-                            status=status,
-                            timestamp=datetime.now()
-                        )
-                        db.session.add(new_attendance)
-            
-            db.session.commit()
-            flash("Attendance recorded successfully", "success")
-            return redirect(url_for('attendance_mark'))
-        except (ValueError, TypeError):
-            flash("Invalid session selected", "error")
-    
-    return render_template('attendance_mark.html', sessions=sessions, users=members)
 
 @app.route('/attendance-history')
 @login_required
@@ -339,6 +324,55 @@ def attendance_history_admin_view(user_id):
         'excused': sum(1 for r, _, _ in records if r.status=='excused')
     }
     return render_template('attendance_history_admin_view.html', user=selected_user, records=records, summary=summary)
+
+@app.route('/attendance-mark')
+@login_required
+def attendance_mark():
+    if current_user.role not in ['admin', 'ketua', 'pembina']:
+        abort(403)
+    sessions = Session.query.all()
+    users = User.query.filter(User.role == 'member').all()
+    return render_template('attendance_mark.html', sessions=sessions, users=users)
+
+@app.route('/attendance', methods=['GET', 'POST'])
+@login_required
+def attendance():
+    if current_user.role in ['admin', 'ketua', 'pembina']:
+        return redirect(url_for('attendance_mark'))
+    if not current_user.can_mark_attendance:
+        abort(403)
+    if request.method == 'POST':
+        session_id = request.form.get('session_id')
+        if not session_id:
+            flash('Session not selected', 'error')
+            return redirect(url_for('attendance'))
+        session = Session.query.get_or_404(session_id)
+        if session.is_locked:
+            flash('Session is locked', 'error')
+            return redirect(url_for('attendance'))
+        if not can_mark_attendance(current_user, session.pic_id):
+            abort(403)
+        members = User.query.filter_by(pic_id=current_user.id).all()
+        for member in members:
+            status = request.form.get(f'status_{member.id}')
+            if status:
+                existing = Attendance.query.filter_by(session_id=session_id, user_id=member.id).first()
+                if not existing:
+                    attendance = Attendance(session_id=session_id, user_id=member.id, status=status)
+                    db.session.add(attendance)
+        db.session.commit()
+        flash('Attendance saved', 'success')
+        return redirect(url_for('attendance'))
+    # GET
+    selected_session_id = request.args.get('session_id')
+    sessions = Session.query.filter_by(pic_id=current_user.id).all()
+    members = User.query.filter_by(pic_id=current_user.id).all()
+    attendance_map = {}
+    if selected_session_id:
+        attendances = Attendance.query.filter_by(session_id=selected_session_id).all()
+        for a in attendances:
+            attendance_map[a.user_id] = a.status
+    return render_template('attendance.html', sessions=sessions, members=members, selected_session_id=selected_session_id, attendance_map=attendance_map)
 
 @app.route('/logout')
 @login_required
@@ -458,7 +492,6 @@ def api_dashboard_calendar():
     sessions = Session.query.all()
     calendar_events = []
 
-    # Rohis sessions
     for session in sessions:
         hijri_date = get_hijri_date(session.date)
         calendar_events.append({
@@ -575,8 +608,5 @@ def forbidden(e):
     return render_template('403.html'), 403
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.drop_all()
-        db.create_all()
     port = int(os.environ.get("PORT", 5000)) 
     app.run(host="0.0.0.0", port=port, debug=True)

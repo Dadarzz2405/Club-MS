@@ -19,13 +19,18 @@ class Session(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(150))
     date = db.Column(db.String(50))
+    pic_id = db.Column(db.Integer, db.ForeignKey('pic.id'))
+    is_locked = db.Column(db.Boolean, default=False)
 
 class Attendance(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     session_id = db.Column(db.Integer, db.ForeignKey('session.id'))
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    status = db.Column(db.String(50))
+    status = db.Column(db.String(50), nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    __table_args__ = (
+        db.UniqueConstraint('session_id', 'user_id', name='unique_session_user'),
+    )
 
 class Pic(db.Model):
     id = db.Column(db.Integer, primary_key=True)

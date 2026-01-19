@@ -1,9 +1,5 @@
-from app import app, db
+from app import app, db, bcrypt
 from models import User
-from flask_bcrypt import Bcrypt
-import os
-
-bcrypt = Bcrypt(app)  
 
 INITIAL_PASSWORD = "rohis2025"
 
@@ -32,15 +28,23 @@ members = [
     {"email": "naufal.syuja@gdajogja.sch.id", "name": "Naufal Syuja", "class": "10-D", "role": "member"},
     {"email": "tengku.harahap@gdajogja.sch.id", "name": "Tengku Harahap", "class": "10-B", "role": "member"},
     {"email": "zahra.layla@gdajogja.sch.id", "name": "Zahra Layla", "class": "10-D", "role": "member"},
-    {"email": "zalfa.zahira@gdajogja.sch.id", "name": "Zalfa Zahira", "class": "10-C", "role": "member"}
+    {"email": "zalfa.zahira@gdajogja.sch.id", "name": "Zalfa Zahira", "class": "10-C", "role": "member"},
 ]
+
 def seed_members():
     with app.app_context():
-        if os.path.exists('database.db'):
-            os.remove('database.db')
         db.create_all()
+
         for m in members:
-            hashed_pw = bcrypt.generate_password_hash(INITIAL_PASSWORD).decode('utf-8')  
+            existing = User.query.filter_by(email=m["email"]).first()
+            if existing:
+                print(f"Skipped (already exists): {m['email']}")
+                continue
+
+            hashed_pw = bcrypt.generate_password_hash(
+                INITIAL_PASSWORD
+            ).decode("utf-8")
+
             user = User(
                 email=m["email"],
                 password=hashed_pw,
@@ -49,23 +53,13 @@ def seed_members():
                 role=m["role"],
                 must_change_password=True
             )
+
             db.session.add(user)
-        db.session.commit()
-    print("✅ All members added with valid passwords!")
-
-def update_class_names():
-    with app.app_context():
-        for m in members:
-            user = User.query.filter_by(email=m["email"]).first()
-
-            if user:
-                user.class_name = m["class"]
-                print(f"Updated class for {user.email} → {m['class']}")
-            else:
-                print(f"Skipped (not found): {m['email']}")
+            print(f"Added: {m['email']}")
 
         db.session.commit()
 
-    print("✅ Class names updated successfully!")
+    print("✅ Seeding completed safely.")
 
-seed_members()
+if __name__ == "__main__":
+    seed_members()
