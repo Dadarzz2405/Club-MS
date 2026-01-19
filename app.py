@@ -177,7 +177,7 @@ def attendance_core():
         abort(403)
 
     sessions = Session.query.order_by(Session.date.desc()).all()
-    core_users = User.query.filter(User.role.in_(["admin", "ketua"])).all()
+    users = User.query.filter(User.role.in_(["admin", "ketua"])).all()
 
     return render_template(
         "attendance_mark_core.html",
