@@ -60,13 +60,13 @@
             </thead>
 
             <tbody>
-                {% for r, session_name, session_date in records %}
+                {% for r in records %}
                 <tr>
-                    <td>{{ session_name }}</td>
-                    <td>{{ session_date }}</td>
+                    <td>{{ r.session.name }}</td>
+                    <td>{{ r.session.date }}</td>
                     <td>
                         {% if r.status == "present" %}
-                            <span class="badge bg-primary">Present</span>
+                            <span class="badge bg-success">Present</span>
                         {% elif r.status == "absent" %}
                             <span class="badge bg-danger">Absent</span>
                         {% else %}
