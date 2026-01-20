@@ -18,14 +18,18 @@
                     {% if note %}
                         <p class="card-text">{{ note.content|safe|truncate(200) }}</p>
                         <small class="text-muted">Last updated: {{ note.updated_at.strftime('%Y-%m-%d %H:%M') if note.updated_at else note.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                        {% if current_user.role in ['admin', 'ketua', 'pembina'] %}
                         <div class="mt-3">
                             <a href="{{ url_for('notulensi', session_id=session.id) }}" class="btn btn-primary btn-sm">Edit Notulensi</a>
                         </div>
+                        {% endif %}
                     {% else %}
                         <p class="card-text text-muted">No notulensi created yet.</p>
+                        {% if current_user.role in ['admin', 'ketua', 'pembina'] %}
                         <div class="mt-3">
                             <a href="{{ url_for('notulensi', session_id=session.id) }}" class="btn btn-outline-primary btn-sm">Create Notulensi</a>
                         </div>
+                        {% endif %}
                     {% endif %}
                 </div>
             </div>

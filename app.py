@@ -681,6 +681,8 @@ def pic_management():
 @app.route("/api/notulensi/<int:session_id>", methods=["POST"])
 @login_required
 def save_notulensi(session_id):
+    if current_user.role not in ['admin', 'ketua', 'pembina']:
+        abort(403)
     data = request.get_json()
     content = data.get("content", "").strip()
 
@@ -713,6 +715,8 @@ def notulensi_list():
 @app.route("/notulensi/<int:session_id>")
 @login_required
 def notulensi(session_id):
+    if current_user.role not in ['admin', 'ketua', 'pembina']:
+        abort(403)
     session = Session.query.get_or_404(session_id)
     note = Notulensi.query.filter_by(session_id=session_id).first()
     return render_template("notulensi.html", session=session, note=note)

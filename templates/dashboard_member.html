@@ -56,6 +56,15 @@
                 </a>
             </div>
 
+            <div class="col-md-6">
+                <a href="{{ url_for('notulensi_list') }}" class="text-decoration-none text-dark h-100 d-block">
+                    <div class="card shadow-sm p-3 text-center h-100">
+                        <h5 class="mb-1">📝 View Notulensi</h5>
+                        <p class="small text-muted mb-0">Read meeting minutes</p>
+                    </div>
+                </a>
+            </div>
+
             {% if current_user.can_mark_attendance %}
             <div class="col-md-6">
                 <a href="{{ url_for('attendance') }}" class="text-decoration-none text-dark h-100 d-block">
