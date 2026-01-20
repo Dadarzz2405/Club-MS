@@ -23,13 +23,13 @@
             </thead>
 
             <tbody>
-                {% for row in history %}
+                {% for row in records %}
                 <tr>
                     <td>{{ row.session.date }}</td>
                     <td>{{ row.session.name }}</td>
                     <td>
                         {% if row.status == "present" %}
-                            <span class="badge bg-primary">Present</span>
+                            <span class="badge bg-success">Present</span>
                         {% elif row.status == "absent" %}
                             <span class="badge bg-danger">Absent</span>
                         {% else %}
