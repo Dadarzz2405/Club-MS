@@ -9,14 +9,15 @@
     
     <div class="row">
         {% for session in sessions %}
+        {% set note = notulensi_dict.get(session.id) %}
         <div class="col-md-6 mb-3">
             <div class="card h-100">
                 <div class="card-body">
                     <h5 class="card-title">{{ session.name }}</h5>
-                    <p class="card-text text-muted">Date: {{ session.date.strftime('%Y-%m-%d') }}</p>
-                    {% if session.notulensi %}
-                        <p class="card-text">{{ session.notulensi.content|safe|truncate(200) }}</p>
-                        <small class="text-muted">Last updated: {{ session.notulensi.updated_at.strftime('%Y-%m-%d %H:%M') if session.notulensi.updated_at else session.notulensi.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                    <p class="card-text text-muted">Date: {{ session.date }}</p>
+                    {% if note %}
+                        <p class="card-text">{{ note.content|safe|truncate(200) }}</p>
+                        <small class="text-muted">Last updated: {{ note.updated_at.strftime('%Y-%m-%d %H:%M') if note.updated_at else note.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
                         <div class="mt-3">
                             <a href="{{ url_for('notulensi', session_id=session.id) }}" class="btn btn-primary btn-sm">Edit Notulensi</a>
                         </div>

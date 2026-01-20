@@ -705,13 +705,10 @@ def notulensi_list():
     # Get all sessions
     sessions = Session.query.all()
     # Get all notulensi for quick lookup
-    notulensi_dict = {n.session_id: n for n in Notulensi.query.all()}
+    notulensis = Notulensi.query.all()
+    notulensi_dict = {n.session_id: n for n in notulensis}
     
-    # Attach notulensi to sessions
-    for session in sessions:
-        session.notulensi = notulensi_dict.get(session.id)
-    
-    return render_template("notulensi_list.html", sessions=sessions)
+    return render_template("notulensi_list.html", sessions=sessions, notulensi_dict=notulensi_dict)
 
 @app.route("/notulensi/<int:session_id>")
 @login_required
