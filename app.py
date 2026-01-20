@@ -15,6 +15,7 @@ import csv
 from io import TextIOWrapper, StringIO, BytesIO
 from docx import Document
 from formatter import format_attendance
+from summarizer import summarize_notulensi
 
 UPLOAD_FOLDER = 'static/uploads/profiles'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
@@ -740,6 +741,66 @@ def notulensi_view(notulensi_id):
     
     return render_template("notulensi_view.html", session=session, note=note, can_edit=can_edit)
 
+@app.route('/api/news-feed')
+@login_required
+def news_feed():
+    """
+    Get news feed data:
+    - Upcoming sessions (next 3)
+    - Latest meeting summaries (last 3)
+    """
+    try:
+        # Get upcoming sessions
+        today = datetime.now().date()
+        upcoming_sessions = Session.query.filter(
+            Session.date >= str(today)
+        ).order_by(Session.date.asc()).limit(3).all()
+        
+        # Get recent sessions with notulensi
+        recent_notulensi = (
+            db.session.query(Notulensi, Session)
+            .join(Session, Notulensi.session_id == Session.id)
+            .order_by(Notulensi.updated_at.desc())
+            .limit(3)
+            .all()
+        )
+        
+        # Format upcoming sessions
+        upcoming_data = []
+        for session in upcoming_sessions:
+            upcoming_data.append({
+                'id': session.id,
+                'name': session.name,
+                'date': session.date,
+                'pic': session.pic.name if session.pic else 'No PIC assigned'
+            })
+        
+        # Format recent notulensi with summaries
+        recent_data = []
+        for notulensi, session in recent_notulensi:
+            # Generate summary (this might take a moment)
+            summary = summarize_notulensi(notulensi.content)
+            
+            recent_data.append({
+                'id': notulensi.id,
+                'session_name': session.name,
+                'session_date': session.date,
+                'summary': summary,
+                'updated_at': notulensi.updated_at.strftime('%d %b %Y') if notulensi.updated_at else notulensi.created_at.strftime('%d %b %Y')
+            })
+        
+        return jsonify({
+            'upcoming': upcoming_data,
+            'recent': recent_data
+        })
+        
+    except Exception as e:
+        print(f"News feed error: {e}")
+        return jsonify({
+            'upcoming': [],
+            'recent': [],
+            'error': str(e)
+        }), 500
 @app.errorhandler(403)
 def forbidden(e):
     return render_template('403.html'), 403

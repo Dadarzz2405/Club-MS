@@ -1,0 +1,192 @@
+<!-- News Feed Component -->
+<!-- Include this in both admin and member dashboards -->
+
+<div class="card shadow mb-4">
+    <div class="card-header bg-gradient-primary text-white">
+        <h5 class="mb-0">
+            <i class="fas fa-newspaper me-2"></i>News & Updates
+        </h5>
+    </div>
+    <div class="card-body">
+        
+        <!-- Loading State -->
+        <div id="newsLoading" class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="text-muted mt-2">Loading news feed...</p>
+        </div>
+
+        <!-- News Content -->
+        <div id="newsContent" style="display: none;">
+            
+            <!-- Upcoming Sessions Section -->
+            <div class="mb-4">
+                <h6 class="fw-bold text-primary mb-3">
+                    <i class="fas fa-calendar-check me-2"></i>Upcoming Sessions
+                </h6>
+                <div id="upcomingList"></div>
+            </div>
+
+            <hr>
+
+            <!-- Recent Meetings Section -->
+            <div>
+                <h6 class="fw-bold text-success mb-3">
+                    <i class="fas fa-clock me-2"></i>Recent Meeting Summaries
+                </h6>
+                <div id="recentList"></div>
+            </div>
+        </div>
+
+        <!-- Error State -->
+        <div id="newsError" style="display: none;" class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Unable to load news feed. Please try refreshing the page.
+        </div>
+    </div>
+</div>
+
+<style>
+.bg-gradient-primary {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+}
+
+.news-item {
+    padding: 15px;
+    border-left: 4px solid var(--primary);
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    transition: all 0.3s ease;
+}
+
+.news-item:hover {
+    background: #e9ecef;
+    transform: translateX(5px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.news-item-title {
+    font-weight: 600;
+    color: var(--text-main);
+    margin-bottom: 5px;
+}
+
+.news-item-meta {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.news-item-summary {
+    margin-top: 8px;
+    color: var(--text-main);
+    line-height: 1.6;
+}
+
+.badge-upcoming {
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+}
+
+.badge-recent {
+    background: linear-gradient(135deg, #2196F3, #1976D2);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-muted);
+}
+
+.empty-state i {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    opacity: 0.5;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    const newsLoading = document.getElementById('newsLoading');
+    const newsContent = document.getElementById('newsContent');
+    const newsError = document.getElementById('newsError');
+    const upcomingList = document.getElementById('upcomingList');
+    const recentList = document.getElementById('recentList');
+
+    try {
+        const response = await fetch('/api/news-feed');
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error('Failed to load news feed');
+        }
+
+        newsLoading.style.display = 'none';
+        newsContent.style.display = 'block';
+
+        // Render upcoming sessions
+        if (data.upcoming && data.upcoming.length > 0) {
+            upcomingList.innerHTML = data.upcoming.map(session => `
+                <div class="news-item">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <div class="news-item-title">
+                                <i class="fas fa-calendar-day me-2 text-primary"></i>
+                                ${session.name}
+                            </div>
+                            <div class="news-item-meta">
+                                <i class="fas fa-clock me-1"></i>${session.date}
+                                <span class="mx-2">•</span>
+                                <i class="fas fa-user me-1"></i>${session.pic}
+                            </div>
+                        </div>
+                        <span class="badge badge-upcoming">Upcoming</span>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            upcomingList.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-calendar-times"></i>
+                    <p>No upcoming sessions scheduled</p>
+                </div>
+            `;
+        }
+
+        // Render recent meeting summaries
+        if (data.recent && data.recent.length > 0) {
+            recentList.innerHTML = data.recent.map(item => `
+                <div class="news-item" style="border-left-color: var(--secondary);">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="news-item-title">
+                            <i class="fas fa-file-alt me-2 text-success"></i>
+                            ${item.session_name}
+                        </div>
+                        <span class="badge badge-recent">${item.updated_at}</span>
+                    </div>
+                    <div class="news-item-summary">
+                        ${item.summary}
+                    </div>
+                    <div class="mt-2">
+                        <a href="/notulensi/view/${item.id}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-eye me-1"></i>Read Full
+                        </a>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            recentList.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <p>No recent meeting summaries</p>
+                </div>
+            `;
+        }
+
+    } catch (error) {
+        console.error('News feed error:', error);
+        newsLoading.style.display = 'none';
+        newsError.style.display = 'block';
+    }
+});
+</script>
