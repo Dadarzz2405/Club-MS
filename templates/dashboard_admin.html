@@ -28,105 +28,135 @@
 .fc-day-today {
     background: #e3f2fd !important;
 }
+
+.dashboard-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 24px rgba(0,0,0,0.15) !important;
+}
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="mt-4">
     <div class="card shadow p-4">
-        <h2 class="fw-bold mb-3">Admin Dashboard</h2>
+        <h2 class="fw-bold mb-3">
+            <i class="fas fa-shield-alt text-primary me-2"></i>Admin Dashboard
+        </h2>
         <p class="text-muted mb-4">
-            Welcome, {{ current_user.name }}
-            <small class="text-capitalize">({{ current_user.role }})</small>
+            Welcome, <strong>{{ current_user.name }}</strong>
+            <span class="badge bg-primary ms-2">{{ current_user.role|capitalize }}</span>
         </p>
+
+        <div class="alert alert-info mb-4">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Quick Tip:</strong> Click on any card below to access that feature. Use the Notulensi section to manage meeting minutes.
+        </div>
 
         <div class="row g-4">
             <div class="col-lg-3 col-md-6">
                 <a href="{{ url_for('create_session') }}" class="text-decoration-none text-dark">
-                    <div class="p-4 text-center border rounded h-100 shadow-sm">
-                        <i class="fa fa-3x fa-calendar-alt text-primary mb-3"></i>
-                        <h5>Create Session</h5>
-                        <p>Schedule new attendance sessions</p>
+                    <div class="dashboard-card p-4 text-center border rounded h-100 shadow-sm">
+                        <i class="fa fa-3x fa-calendar-plus text-primary mb-3"></i>
+                        <h5 class="fw-bold">Create Session</h5>
+                        <p class="small text-muted mb-0">Schedule new attendance sessions</p>
                     </div>
                 </a>
             </div>
 
             <div class="col-lg-3 col-md-6">
                 <a href="{{ url_for('attendance_mark') }}" class="text-decoration-none text-dark">
-                    <div class="p-4 text-center border rounded h-100 shadow-sm">
-                        <i class="fa fa-3x fa-check-circle text-primary mb-3"></i>
-                        <h5>Mark Attendance</h5>
-                        <p>Record member attendance</p>
+                    <div class="dashboard-card p-4 text-center border rounded h-100 shadow-sm">
+                        <i class="fa fa-3x fa-check-circle text-success mb-3"></i>
+                        <h5 class="fw-bold">Mark Attendance</h5>
+                        <p class="small text-muted mb-0">Record member attendance</p>
                     </div>
                 </a>
             </div>
             
             <div class="col-lg-3 col-md-6">
                 <a href="{{ url_for('notulensi_list') }}" class="text-decoration-none text-dark">
-                    <div class="p-4 text-center border rounded h-100 shadow-sm">
-                        <i class="fa fa-3x fa-file-alt text-success mb-3"></i>
-                        <h5>Notulensi</h5>
-                        <p>Manage meeting minutes</p>
+                    <div class="dashboard-card p-4 text-center border rounded h-100 shadow-sm">
+                        <i class="fa fa-3x fa-file-alt text-warning mb-3"></i>
+                        <h5 class="fw-bold">Meeting Minutes</h5>
+                        <p class="small text-muted mb-0">Create & manage notulensi</p>
                     </div>
                 </a>
             </div>
 
             <div class="col-lg-3 col-md-6">
                 <a href="{{ url_for('attendance_core') }}" class="text-decoration-none text-dark">
-                    <div class="p-4 text-center border rounded h-100 shadow-sm">
+                    <div class="dashboard-card p-4 text-center border rounded h-100 shadow-sm">
                         <i class="fa fa-3x fa-user-shield text-danger mb-3"></i>
-                        <h5>Core Attendance</h5>
-                        <p>Mark admin & ketua attendance</p>
+                        <h5 class="fw-bold">Core Attendance</h5>
+                        <p class="small text-muted mb-0">Mark admin & ketua attendance</p>
                     </div>
                 </a>
             </div>
 
             <div class="col-lg-3 col-md-6">
                 <a href="{{ url_for('member_list') }}" class="text-decoration-none text-dark">
-                    <div class="p-4 text-center border rounded h-100 shadow-sm">
-                        <i class="fa fa-3x fa-users text-primary mb-3"></i>
-                        <h5>Member List</h5>
-                        <p>See all members and roles</p>
+                    <div class="dashboard-card p-4 text-center border rounded h-100 shadow-sm">
+                        <i class="fa fa-3x fa-users text-info mb-3"></i>
+                        <h5 class="fw-bold">Member List</h5>
+                        <p class="small text-muted mb-0">See all members and roles</p>
                     </div>
                 </a>
             </div>
 
             <div class="col-lg-3 col-md-6">
                 <a href="{{ url_for('pic_management') }}" class="text-decoration-none text-dark">
-                    <div class="p-4 text-center border rounded h-100 shadow-sm">
+                    <div class="dashboard-card p-4 text-center border rounded h-100 shadow-sm">
                         <i class="fa fa-3x fa-users-cog text-primary mb-3"></i>
-                        <h5>Member Management</h5>
-                        <p>Assign PIC & attendance roles</p>
+                        <h5 class="fw-bold">Member Management</h5>
+                        <p class="small text-muted mb-0">Assign PIC & attendance roles</p>
                     </div>
                 </a>
             </div>
 
             <div class="col-lg-3 col-md-6">
                 <a href="{{ url_for('manage_pics') }}" class="text-decoration-none text-dark">
-                    <div class="p-4 text-center border rounded h-100 shadow-sm">
-                        <i class="fa fa-3x fa-sitemap text-primary mb-3"></i>
-                        <h5>Manage Event PIC</h5>
-                        <p>Create, rename, or event PIC</p>
+                    <div class="dashboard-card p-4 text-center border rounded h-100 shadow-sm">
+                        <i class="fa fa-3x fa-sitemap text-secondary mb-3"></i>
+                        <h5 class="fw-bold">Manage Event PIC</h5>
+                        <p class="small text-muted mb-0">Create or delete event PIC</p>
+                    </div>
+                </a>
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+                <a href="{{ url_for('calendar') }}" class="text-decoration-none text-dark">
+                    <div class="dashboard-card p-4 text-center border rounded h-100 shadow-sm">
+                        <i class="fa fa-3x fa-calendar-alt text-success mb-3"></i>
+                        <h5 class="fw-bold">Rohis Calendar</h5>
+                        <p class="small text-muted mb-0">View schedule & Islamic holidays</p>
                     </div>
                 </a>
             </div>
         </div>
 
-        <div class="mt-5 text-center">
-            <a href="{{ url_for('attendance_history_admin') }}" class="btn btn-outline-primary me-2">
-                📊 Member Attendance
-            </a>
-            <a href="{{ url_for('attendance_history') }}" class="btn btn-outline-secondary">
-                📈 My Attendance
-            </a>
-        </div>
-
         <hr class="my-5">
 
-        <div class="text-center">
-            <a href="{{ url_for('calendar') }}" class="btn btn-primary btn-lg">
-                📅 View Rohis Calendar
-            </a>
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card bg-light border-0 p-4">
+                    <h5 class="fw-bold mb-3">
+                        <i class="fas fa-chart-bar text-primary me-2"></i>Quick Reports
+                    </h5>
+                    <div class="d-flex gap-3 flex-wrap">
+                        <a href="{{ url_for('attendance_history_admin') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-users me-2"></i>Member Attendance Reports
+                        </a>
+                        <a href="{{ url_for('attendance_history') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-user me-2"></i>My Attendance
+                        </a>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>

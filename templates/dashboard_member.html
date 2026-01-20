@@ -28,6 +28,17 @@
 .fc-day-today {
     background: #e3f2fd !important;
 }
+
+.dashboard-card {
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--primary);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+}
 </style>
 {% endblock %}
 
@@ -37,30 +48,43 @@
         <h2 class="fw-bold mb-3">Member Dashboard</h2>
         <p class="text-muted mb-4">Welcome, {{ current_user.name }}</p>
 
-        <div class="row g-3">
+        <div class="row g-4">
             <div class="col-md-6">
                 <a href="{{ url_for('attendance_history') }}" class="text-decoration-none text-dark h-100 d-block">
-                    <div class="card shadow-sm p-3 text-center h-100">
-                        <h5 class="mb-1">📈 My Attendance History</h5>
+                    <div class="card dashboard-card shadow-sm p-4 text-center h-100">
+                        <i class="fas fa-chart-line fa-3x text-primary mb-3"></i>
+                        <h5 class="fw-bold mb-2">📈 My Attendance History</h5>
                         <p class="small text-muted mb-0">View your attendance per session</p>
                     </div>
                 </a>
             </div>
 
             <div class="col-md-6">
+                <a href="{{ url_for('notulensi_list') }}" class="text-decoration-none text-dark h-100 d-block">
+                    <div class="card dashboard-card shadow-sm p-4 text-center h-100">
+                        <i class="fas fa-file-alt fa-3x text-success mb-3"></i>
+                        <h5 class="fw-bold mb-2">📝 View Meeting Minutes</h5>
+                        <p class="small text-muted mb-0">Read notulensi from sessions</p>
+                    </div>
+                </a>
+            </div>
+
+            <div class="col-md-6">
                 <a href="{{ url_for('member_list') }}" class="text-decoration-none text-dark h-100 d-block">
-                    <div class="card shadow-sm p-3 text-center h-100">
-                        <h5 class="mb-1">👥 View Member List</h5>
+                    <div class="card dashboard-card shadow-sm p-4 text-center h-100">
+                        <i class="fas fa-users fa-3x text-info mb-3"></i>
+                        <h5 class="fw-bold mb-2">👥 View Member List</h5>
                         <p class="small text-muted mb-0">See other members</p>
                     </div>
                 </a>
             </div>
 
             <div class="col-md-6">
-                <a href="{{ url_for('notulensi_list') }}" class="text-decoration-none text-dark h-100 d-block">
-                    <div class="card shadow-sm p-3 text-center h-100">
-                        <h5 class="mb-1">📝 View Notulensi</h5>
-                        <p class="small text-muted mb-0">Read meeting minutes</p>
+                <a href="{{ url_for('calendar') }}" class="text-decoration-none text-dark h-100 d-block">
+                    <div class="card dashboard-card shadow-sm p-4 text-center h-100">
+                        <i class="fas fa-calendar-alt fa-3x text-warning mb-3"></i>
+                        <h5 class="fw-bold mb-2">📅 Rohis Calendar</h5>
+                        <p class="small text-muted mb-0">View schedule and Islamic holidays</p>
                     </div>
                 </a>
             </div>
@@ -68,21 +92,15 @@
             {% if current_user.can_mark_attendance %}
             <div class="col-md-6">
                 <a href="{{ url_for('attendance') }}" class="text-decoration-none text-dark h-100 d-block">
-                    <div class="card shadow-sm p-3 text-center h-100">
-                        <h5 class="mb-1">✅ Mark Attendance</h5>
+                    <div class="card dashboard-card shadow-sm p-4 text-center h-100 border-primary">
+                        <i class="fas fa-clipboard-check fa-3x text-danger mb-3"></i>
+                        <h5 class="fw-bold mb-2">✅ Mark Attendance</h5>
                         <p class="small text-muted mb-0">You can mark attendance for your PIC</p>
+                        <span class="badge bg-primary mt-2">Special Access</span>
                     </div>
                 </a>
             </div>
             {% endif %}
-        </div>
-
-        <hr class="my-5">
-
-        <div class="text-center">
-            <a href="{{ url_for('calendar') }}" class="btn btn-primary btn-lg">
-                📅 View Rohis Calendar
-            </a>
         </div>
     </div>
 </div>
