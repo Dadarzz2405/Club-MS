@@ -682,10 +682,11 @@ def pic_management():
 @login_required
 def save_notulensi(session_id):
     data = request.get_json()
-    content = data.get("content")
+    content = data.get("content", "").strip()
 
-    if not content:
-        return jsonify({"error": "empty"}), 400
+    # Check if content is essentially empty (just HTML tags or whitespace)
+    if not content or content in ['<p><br></p>', '<p></p>', '<div><br></div>', '<div></div>']:
+        return jsonify({"error": "Content cannot be empty"}), 400
 
     note = Notulensi.query.filter_by(session_id=session_id).first()
 
@@ -698,11 +699,26 @@ def save_notulensi(session_id):
     db.session.commit()
     return jsonify({"success": True})
 
-@app.route("/notulensi")
+@app.route("/notulensi-list")
 @login_required
 def notulensi_list():
-    notes = Notulensi.query.all()
-    return render_template("notulensi_list.html", notes=notes)
+    # Get all sessions
+    sessions = Session.query.all()
+    # Get all notulensi for quick lookup
+    notulensi_dict = {n.session_id: n for n in Notulensi.query.all()}
+    
+    # Attach notulensi to sessions
+    for session in sessions:
+        session.notulensi = notulensi_dict.get(session.id)
+    
+    return render_template("notulensi_list.html", sessions=sessions)
+
+@app.route("/notulensi/<int:session_id>")
+@login_required
+def notulensi(session_id):
+    session = Session.query.get_or_404(session_id)
+    note = Notulensi.query.filter_by(session_id=session_id).first()
+    return render_template("notulensi.html", session=session, note=note)
 
 @app.errorhandler(403)
 def forbidden(e):

@@ -2,16 +2,41 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h2>Daftar Notulensi</h2>
-    <div class="list-group">
-        {% for note in notes %}
-        <div class="list-group-item">
-            <h5 class="mb-1">{{ note.session.name }}</h5>
-            <p class="mb-1">{{ note.content|safe|truncate(200) }}</p>
-            <small>Terakhir diupdate: {{ note.updated_at.strftime('%Y-%m-%d %H:%M') if note.updated_at else note.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Daftar Notulensi</h2>
+        <a href="{{ url_for('dashboard_admin') }}" class="btn btn-outline-secondary">Back to Dashboard</a>
+    </div>
+    
+    <div class="row">
+        {% for session in sessions %}
+        <div class="col-md-6 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">{{ session.name }}</h5>
+                    <p class="card-text text-muted">Date: {{ session.date.strftime('%Y-%m-%d') }}</p>
+                    {% if session.notulensi %}
+                        <p class="card-text">{{ session.notulensi.content|safe|truncate(200) }}</p>
+                        <small class="text-muted">Last updated: {{ session.notulensi.updated_at.strftime('%Y-%m-%d %H:%M') if session.notulensi.updated_at else session.notulensi.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                        <div class="mt-3">
+                            <a href="{{ url_for('notulensi', session_id=session.id) }}" class="btn btn-primary btn-sm">Edit Notulensi</a>
+                        </div>
+                    {% else %}
+                        <p class="card-text text-muted">No notulensi created yet.</p>
+                        <div class="mt-3">
+                            <a href="{{ url_for('notulensi', session_id=session.id) }}" class="btn btn-outline-primary btn-sm">Create Notulensi</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
         </div>
         {% else %}
-        <p>Belum ada notulensi.</p>
+        <div class="col-12">
+            <div class="alert alert-info">
+                <h5>No sessions found</h5>
+                <p>Create sessions first to manage notulensi.</p>
+                <a href="{{ url_for('create_session') }}" class="btn btn-primary">Create Session</a>
+            </div>
+        </div>
         {% endfor %}
     </div>
 </div>
