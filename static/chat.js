@@ -21,7 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!greeted) {
       addMessage(
         "bot",
-        "Assalamu'alaikum. I can help explain features or guide you to pages like attendance or dashboard."
+        "Assalamu'alaikum. I can explain about Islamic teachings or guide you through Rohis activities. How can I assist you today?"
       );
       greeted = true;
     }
