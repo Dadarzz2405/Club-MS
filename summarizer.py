@@ -1,5 +1,7 @@
-from groq import Groq
 import os
+import re
+from html import unescape
+from groq import Groq
 
 SUMMARIZER_PROMPT = """
 You are a meeting minutes summarizer for a school Islamic organization (Rohis).
@@ -20,6 +22,55 @@ Example input: "Meeting discussed Ramadan program planning. Decided to have ifta
 Example output: "Discussed Ramadan program planning. Team will organize iftar gathering on March 15th, with Ahmad coordinating logistics. Fundraising ideas proposed for new prayer mats."
 """
 
+
+class APIKeyError(Exception):
+    """Raised when API key is missing or invalid"""
+    pass
+
+
+def get_groq_client():
+    """
+    Get Groq client with proper error handling.
+    
+    Raises:
+        APIKeyError: If GROQ_API_KEY is not set in environment
+    """
+    api_key = os.environ.get("GROQ_API_KEY")
+    
+    if not api_key:
+        raise APIKeyError(
+            "GROQ_API_KEY environment variable is not set. "
+            "Please set it in your .env file or environment variables."
+        )
+    
+    if not api_key.strip():
+        raise APIKeyError(
+            "GROQ_API_KEY is empty. Please provide a valid API key."
+        )
+    
+    try:
+        return Groq(api_key=api_key)
+    except Exception as e:
+        raise APIKeyError(f"Failed to initialize Groq client: {str(e)}")
+
+
+def clean_html(content: str) -> str:
+    """
+    Remove HTML tags and decode HTML entities.
+    
+    Args:
+        content: HTML content string
+        
+    Returns:
+        Clean text without HTML
+    """
+    # Strip HTML tags
+    clean_text = re.sub('<[^<]+?>', '', content)
+    # Decode HTML entities
+    clean_text = unescape(clean_text).strip()
+    return clean_text
+
+
 def summarize_notulensi(content: str) -> str:
     """
     Summarize notulensi content into 2-3 sentences using AI.
@@ -30,25 +81,25 @@ def summarize_notulensi(content: str) -> str:
     Returns:
         Brief summary string (2-3 sentences)
     """
+    if not content or not content.strip():
+        return "Meeting notes available."
+    
     try:
-        # Remove HTML tags for cleaner input
-        from html import unescape
-        import re
+        # Clean HTML from content
+        clean_text = clean_html(content)
         
-        # Strip HTML tags
-        clean_text = re.sub('<[^<]+?>', '', content)
-        clean_text = unescape(clean_text).strip()
-        
-        # If content is too short, return as-is
+        # If content is too short after cleaning, return default
         if len(clean_text) < 50:
             return "Meeting notes available."
         
-        # Truncate if too long (to save tokens)
+        # Truncate if too long (to save tokens and costs)
         if len(clean_text) > 2000:
             clean_text = clean_text[:2000] + "..."
         
-        client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        # Get Groq client
+        client = get_groq_client()
         
+        # Generate summary
         completion = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
@@ -61,17 +112,32 @@ def summarize_notulensi(content: str) -> str:
         
         summary = completion.choices[0].message.content.strip()
         
-        # Fallback if AI returns something weird
+        # Validate summary length (should be reasonable)
         if len(summary) < 10 or len(summary) > 500:
+            print(f"Warning: Summary length unusual ({len(summary)} chars)")
             return "Meeting notes available."
             
         return summary
-        
+    
+    except APIKeyError as e:
+        # API key not configured
+        print(f"API Key Error in summarizer: {e}")
+        return "Meeting notes available."
+    
     except Exception as e:
-        print(f"Summarization error: {e}")
+        # Any other error
+        print(f"Summarization error: {type(e).__name__}: {e}")
         return "Meeting notes available."
 
 
 def get_summary_cache_key(notulensi_id: int) -> str:
-    """Generate cache key for notulensi summary"""
+    """
+    Generate cache key for notulensi summary.
+    
+    Args:
+        notulensi_id: ID of the notulensi record
+        
+    Returns:
+        Cache key string
+    """
     return f"notulensi_summary_{notulensi_id}"

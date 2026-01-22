@@ -1,5 +1,5 @@
-from groq import Groq
 import os
+from groq import Groq
 
 FORMATTER_PROMPT = """
 You are a data formatting engine.
@@ -27,17 +27,80 @@ If the input is invalid, output exactly:
 INVALID_INPUT
 """
 
+
+class APIKeyError(Exception):
+    """Raised when API key is missing or invalid"""
+    pass
+
+
+def get_groq_client():
+    """
+    Get Groq client with proper error handling.
+    
+    Raises:
+        APIKeyError: If GROQ_API_KEY is not set in environment
+    """
+    api_key = os.environ.get("GROQ_API_KEY")
+    
+    if not api_key:
+        raise APIKeyError(
+            "GROQ_API_KEY environment variable is not set. "
+            "Please set it in your .env file or environment variables."
+        )
+    
+    if not api_key.strip():
+        raise APIKeyError(
+            "GROQ_API_KEY is empty. Please provide a valid API key."
+        )
+    
+    try:
+        return Groq(api_key=api_key)
+    except Exception as e:
+        raise APIKeyError(f"Failed to initialize Groq client: {str(e)}")
+
+
 def format_attendance(text_input: str) -> str:
-    client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+    """
+    Format attendance records using AI.
+    
+    Args:
+        text_input: Raw attendance data to format
+        
+    Returns:
+        Formatted attendance string or error message
+        
+    Raises:
+        APIKeyError: If API key is not configured
+    """
+    if not text_input or not text_input.strip():
+        return "INVALID_INPUT"
+    
+    try:
+        client = get_groq_client()
+        
+        completion = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": FORMATTER_PROMPT},
+                {"role": "user", "content": text_input}
+            ],
+            temperature=0,
+            max_tokens=800,
+        )
 
-    completion = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
-        messages=[
-            {"role": "system", "content": FORMATTER_PROMPT},
-            {"role": "user", "content": text_input}
-        ],
-        temperature=0,
-        max_tokens=800,
-    )
-
-    return completion.choices[0].message.content.strip()
+        result = completion.choices[0].message.content.strip()
+        
+        # Validate result
+        if not result:
+            return "FORMATTING_ERROR: Empty response from API"
+        
+        return result
+    
+    except APIKeyError as e:
+        # Re-raise API key errors so they can be handled by caller
+        raise
+    
+    except Exception as e:
+        # Log the error and return a user-friendly message
+        print(f"Formatting error: {type(e).__name__}: {e}")
+        return f"FORMATTING_ERROR: {str(e)}"
