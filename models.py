@@ -13,6 +13,8 @@ class User(db.Model, UserMixin):
     must_change_password = db.Column(db.Boolean, default=True)  # Force change
     class_name = db.Column(db.String(50))
     profile_picture = db.Column(db.String(255), default='default.png')
+    profile_picture_data = db.Column(db.LargeBinary, nullable=True)  # Store image as BLOB
+    profile_picture_filename = db.Column(db.String(255), default='default.png')  # Store filename for reference
     pic_id = db.Column(db.Integer, db.ForeignKey('pic.id', name='fk_user_pic'), nullable=True)
     division_id = db.Column(db.Integer, db.ForeignKey('division.id'), nullable=True)
     can_mark_attendance = db.Column(db.Boolean, default=False)  # New field

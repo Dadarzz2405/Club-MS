@@ -21,7 +21,7 @@
 
         <div class="text-center mb-4 wow fadeInUp" data-wow-delay="0.2s">
             <img
-                src="{{ url_for('static', filename='uploads/profiles/' ~ (current_user.profile_picture or 'default.png')) }}"
+                src="{{ url_for('serve_profile_picture', user_id=current_user.id) }}"
                 class="rounded-circle border shadow"
                 width="130"
                 height="130"

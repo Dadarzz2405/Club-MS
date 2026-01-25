@@ -236,6 +236,17 @@ def api_attendance_core():
 
     return jsonify({"success": True})
 
+@app.route("/api/session/<int:session_id>/status", methods=["GET"])
+@login_required
+def get_session_status(session_id):
+    """Get session lock status"""
+    session = Session.query.get_or_404(session_id)
+    return jsonify({
+        "is_locked": session.is_locked,
+        "session_id": session.id,
+        "name": session.name
+    })
+
 @app.route("/api/session/<int:session_id>/lock", methods=["POST"])
 @login_required
 def lock_session(session_id):
@@ -277,7 +288,7 @@ def manage_pics():
 @app.route("/export/attendance/<int:session_id>")
 @login_required
 def export_attendance_csv(session_id):
-    if current_user.role not in ["admin", "ketua"]:
+    if current_user.role not in ["admin", "ketua", "pembina"]:
         abort(403)
 
     session = Session.query.get_or_404(session_id)
@@ -286,32 +297,78 @@ def export_attendance_csv(session_id):
         db.session.query(
             Attendance,
             User.name,
-            User.email
+            User.email,
+            User.role
         )
         .join(User, Attendance.user_id == User.id)
         .filter(Attendance.session_id == session_id)
+        .order_by(User.name)
         .all()
     )
 
+    if not records:
+        flash("No attendance records found for this session", "warning")
+        return redirect(url_for('attendance_mark'))
+
     wib = timezone(timedelta(hours=7))
-    text_input = f"Session: {session.name} on {session.date}\n"
-    for attendance, name, email in records:
-        formatted_time = attendance.timestamp.astimezone(wib).strftime("%H:%M")
-        text_input += f"{name} | {attendance.status} | {formatted_time}\n"
-
-    formatted = format_attendance(text_input)
-
+    
     doc = Document()
     doc.add_heading(f'Attendance Report: {session.name}', 0)
     doc.add_paragraph(f'Date: {session.date}')
-    doc.add_paragraph('Formatted Records:')
-    doc.add_paragraph(formatted)
-
+    doc.add_paragraph(f'Total Attendees: {len(records)}')
+    doc.add_paragraph('')
+    
+    summary = {
+        'present': sum(1 for a, _, _, _ in records if a.status == 'present'),
+        'absent': sum(1 for a, _, _, _ in records if a.status == 'absent'),
+        'excused': sum(1 for a, _, _, _ in records if a.status == 'excused'),
+        'late': sum(1 for a, _, _, _ in records if a.status == 'late'),
+    }
+    
+    doc.add_heading('Summary', level=1)
+    summary_table = doc.add_table(rows=5, cols=2)
+    summary_table.style = 'Light Grid Accent 1'
+    
+    summary_data = [
+        ('Status', 'Count'),
+        ('Present', str(summary['present'])),
+        ('Absent', str(summary['absent'])),
+        ('Excused', str(summary['excused'])),
+        ('Late', str(summary['late']))
+    ]
+    
+    for i, (label, value) in enumerate(summary_data):
+        summary_table.rows[i].cells[0].text = label
+        summary_table.rows[i].cells[1].text = value
+    
+    doc.add_paragraph('')
+    
+    doc.add_heading('Detailed Records', level=1)
+    
+    table = doc.add_table(rows=1, cols=5)
+    table.style = 'Light Grid Accent 1'
+    
+    header_cells = table.rows[0].cells
+    header_cells[0].text = 'Name'
+    header_cells[1].text = 'Role'
+    header_cells[2].text = 'Status'
+    header_cells[3].text = 'Time'
+    header_cells[4].text = 'Type'
+    
+    for attendance, name, email, role in records:
+        row_cells = table.add_row().cells
+        row_cells[0].text = name
+        row_cells[1].text = role.capitalize()
+        row_cells[2].text = attendance.status.capitalize()
+        formatted_time = attendance.timestamp.astimezone(wib).strftime("%H:%M")
+        row_cells[3].text = formatted_time
+        row_cells[4].text = attendance.attendance_type.capitalize()
+    
     bio = BytesIO()
     doc.save(bio)
     bio.seek(0)
 
-    filename = f"attendance_session_{session.id}.docx"
+    filename = f"attendance_{session.name.replace(' ', '_')}_{session.date}.docx"
 
     return Response(
         bio,
@@ -425,7 +482,6 @@ def attendance():
         flash('Attendance saved', 'success')
         return redirect(url_for('attendance'))
     
-    # GET
     selected_session_id = request.args.get('session_id')
     
     if is_pic:
@@ -485,14 +541,54 @@ def upload_pfp():
         flash('Invalid file type. Allowed types: png, jpg, jpeg, webp', 'error')
         return redirect(url_for('profile'))
     
-    ext = filename_attr.rsplit('.', 1)[1].lower()
-    filename = f"user_{current_user.id}.{ext}"
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    file.save(filepath)
-    current_user.profile_picture = filename
+    # Check file size (5MB limit)
+    file.seek(0, os.SEEK_END)
+    file_size = file.tell()
+    file.seek(0)
+    
+    if file_size > 5 * 1024 * 1024:  # 5MB
+        flash('File size too large. Maximum 5MB allowed.', 'error')
+        return redirect(url_for('profile'))
+    
+    # Read file as binary
+    image_data = file.read()
+    
+    # Store in database
+    current_user.profile_picture_data = image_data
+    current_user.profile_picture_filename = secure_filename(filename_attr)
+    
     db.session.commit()
     flash('Profile picture updated successfully', 'success')
     return redirect(url_for('profile'))
+
+# Add route to serve profile pictures from database:
+@app.route("/profile-picture/<int:user_id>")
+def serve_profile_picture(user_id):
+    user = User.query.get_or_404(user_id)
+    
+    if user.profile_picture_data:
+        # Determine mime type from filename
+        filename = user.profile_picture_filename or 'image.png'
+        ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else 'png'
+        
+        mime_types = {
+            'png': 'image/png',
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'webp': 'image/webp'
+        }
+        
+        mime_type = mime_types.get(ext, 'image/png')
+        
+        return Response(user.profile_picture_data, mimetype=mime_type)
+    else:
+        # Serve default image
+        default_path = os.path.join('static', 'uploads', 'profiles', 'default.png')
+        if os.path.exists(default_path):
+            with open(default_path, 'rb') as f:
+                return Response(f.read(), mimetype='image/png')
+        else:
+            abort(404)
 
 ISLAMIC_HOLIDAYS = {
     # Muharram
@@ -651,7 +747,6 @@ def pic_management():
         except (ValueError, TypeError):
             marker_id = None
 
-        # Ensure only one user in this pic has marking permission
         User.query.filter_by(pic_id=pic_id, can_mark_attendance=True).update({"can_mark_attendance": False})
 
         for uid in user_ids:
@@ -680,7 +775,6 @@ def save_notulensi(session_id):
     data = request.get_json()
     content = data.get("content", "").strip()
 
-    # Check if content is essentially empty (just HTML tags or whitespace)
     if not content or content in ['<p><br></p>', '<p></p>', '<div><br></div>', '<div></div>']:
         return jsonify({"error": "Content cannot be empty"}), 400
 
@@ -741,19 +835,12 @@ def notulensi_view(notulensi_id):
 @app.route('/api/news-feed')
 @login_required
 def news_feed():
-    """
-    Get news feed data:
-    - Upcoming sessions (next 3)
-    - Latest meeting summaries (last 3)
-    """
     try:
-        # Get upcoming sessions
         today = datetime.now().date()
         upcoming_sessions = Session.query.filter(
             Session.date >= str(today)
         ).order_by(Session.date.asc()).limit(3).all()
         
-        # Get recent sessions with notulensi
         recent_notulensi = (
             db.session.query(Notulensi, Session)
             .join(Session, Notulensi.session_id == Session.id)
@@ -762,7 +849,6 @@ def news_feed():
             .all()
         )
         
-        # Format upcoming sessions
         upcoming_data = []
         for session in upcoming_sessions:
             upcoming_data.append({
@@ -772,11 +858,13 @@ def news_feed():
                 'pic': session.pic.name if session.pic else 'No PIC assigned'
             })
         
-        # Format recent notulensi with summaries
         recent_data = []
         for notulensi, session in recent_notulensi:
-            # Generate summary (this might take a moment)
-            summary = summarize_notulensi(notulensi.content)
+            try:
+                summary = summarize_notulensi(notulensi.content)
+            except Exception as e:
+                print(f"Summary error for notulensi {notulensi.id}: {e}")
+                summary = "Meeting notes available."
             
             recent_data.append({
                 'id': notulensi.id,
@@ -787,17 +875,22 @@ def news_feed():
             })
         
         return jsonify({
+            'success': True,
             'upcoming': upcoming_data,
             'recent': recent_data
         })
         
     except Exception as e:
-        print(f"News feed error: {e}")
+        print(f"News feed error: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
+            'success': False,
             'upcoming': [],
             'recent': [],
             'error': str(e)
         }), 500
+
 @app.errorhandler(403)
 def forbidden(e):
     return render_template('403.html'), 403

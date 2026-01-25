@@ -1,17 +1,113 @@
 document.addEventListener("DOMContentLoaded", () => {
     const sessionSelect = document.getElementById("sessionSelect");
     const downloadLink = document.getElementById("download-link");
+    const lockButton = document.getElementById("lock-session-btn");
+    const lockStatus = document.getElementById("lock-status");
 
-    sessionSelect.addEventListener("change", () => {
+    async function checkSessionLock(sessionId) {
+        try {
+            const res = await fetch(`/api/session/${sessionId}/status`);
+            const data = await res.json();
+            
+            if (data.is_locked) {
+                // Disable all attendance buttons
+                document.querySelectorAll(".att-btn").forEach(btn => {
+                    btn.disabled = true;
+                    btn.classList.add('disabled');
+                });
+                
+                if (lockStatus) {
+                    lockStatus.innerHTML = '<span class="badge bg-danger"><i class="fas fa-lock me-1"></i>Session Locked</span>';
+                }
+                
+                if (lockButton) {
+                    lockButton.disabled = true;
+                    lockButton.innerHTML = '<i class="fas fa-lock me-2"></i>Locked';
+                }
+            } else {
+                // Enable all attendance buttons
+                document.querySelectorAll(".att-btn").forEach(btn => {
+                    btn.disabled = false;
+                    btn.classList.remove('disabled');
+                });
+                
+                if (lockStatus) {
+                    lockStatus.innerHTML = '<span class="badge bg-success"><i class="fas fa-unlock me-1"></i>Session Open</span>';
+                }
+                
+                if (lockButton) {
+                    lockButton.disabled = false;
+                    lockButton.innerHTML = '<i class="fas fa-lock me-2"></i>Lock Session';
+                }
+            }
+            
+            return data.is_locked;
+        } catch (err) {
+            console.error("Error checking lock status:", err);
+            return false;
+        }
+    }
+
+    sessionSelect.addEventListener("change", async () => {
         const sessionId = sessionSelect.value;
         if (sessionId) {
             downloadLink.href = `/export/attendance/${sessionId}`;
             downloadLink.removeAttribute("disabled");
+            
+            // Check if session is locked
+            await checkSessionLock(sessionId);
         } else {
             downloadLink.href = "#";
             downloadLink.setAttribute("disabled", "true");
+            
+            if (lockStatus) {
+                lockStatus.innerHTML = '';
+            }
         }
     });
+
+    // Lock session button handler
+    if (lockButton) {
+        lockButton.addEventListener("click", async () => {
+            const sessionId = sessionSelect.value;
+            
+            if (!sessionId) {
+                alert("Please select a session first.");
+                return;
+            }
+            
+            if (!confirm("Are you sure you want to lock this session? This will prevent any further attendance marking.")) {
+                return;
+            }
+            
+            lockButton.disabled = true;
+            lockButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Locking...';
+            
+            try {
+                const res = await fetch(`/api/session/${sessionId}/lock`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    }
+                });
+                
+                if (res.ok) {
+                    await checkSessionLock(sessionId);
+                    alert("Session locked successfully!");
+                } else {
+                    const data = await res.json();
+                    alert(data.error || "Failed to lock session.");
+                    lockButton.disabled = false;
+                    lockButton.innerHTML = '<i class="fas fa-lock me-2"></i>Lock Session';
+                }
+            } catch (err) {
+                console.error("Error locking session:", err);
+                alert("Network error while locking session.");
+                lockButton.disabled = false;
+                lockButton.innerHTML = '<i class="fas fa-lock me-2"></i>Lock Session';
+            }
+        });
+    }
 
     document.querySelectorAll(".att-btn").forEach(btn => {
         btn.addEventListener("click", async () => {
@@ -70,6 +166,11 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
     });
+    
+    // Check initial lock status if session is pre-selected
+    if (sessionSelect.value) {
+        checkSessionLock(sessionSelect.value);
+    }
 });
 
 function lockRow(userId, activeStatus) {
