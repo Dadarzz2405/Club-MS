@@ -4,23 +4,27 @@
 
 {% block content %}
 <div class="mt-4">
-    <div class="card shadow p-4">
+    <div class="card shadow p-4" data-attendance-type="core">
 
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
             <h2 class="fw-bold mb-0">Core Attendance</h2>
-            <div class="d-flex gap-2">
+            <div class="d-flex gap-2 align-items-center">
                 <div id="lock-status"></div>
-                <button id="lock-session-btn" class="btn btn-warning" style="display: none;">
-                    <i class="fas fa-lock me-2"></i>Lock Session
+                <button id="lock-session-btn" class="btn btn-warning btn-sm" style="display: none;">
+                    <i class="fas fa-lock me-1"></i>Lock
                 </button>
-                <a id="download-link" href="#" class="btn btn-success disabled" disabled>
-                    <i class="fas fa-download me-2"></i>Download Report
+                <a id="download-link" 
+                   href="#" 
+                   class="btn btn-success btn-sm disabled" 
+                   style="pointer-events: none; opacity: 0.6;"
+                   onclick="if(this.href === '#' || this.href.endsWith('#')) { alert('Please select a session first'); return false; }">
+                    <i class="fas fa-download me-1"></i>Download Report
                 </a>
             </div>
         </div>
 
         <div class="mb-3">
-            <label class="form-label">Select Session</label>
+            <label class="form-label fw-semibold">Select Session</label>
             <select id="sessionSelect" class="form-select" required>
                 <option value="">-- Select session --</option>
                 {% for s in sessions %}
@@ -29,9 +33,16 @@
             </select>
         </div>
 
+        {% if not sessions %}
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>No sessions found.</strong> Create a session first to mark attendance.
+        </div>
+        {% else %}
+
         <div class="table-responsive">
         <table class="table table-bordered align-middle">
-            <thead>
+            <thead class="table-light">
                 <tr>
                     <th>Name</th>
                     <th class="text-center">Present</th>
@@ -44,10 +55,21 @@
                 {% for u in users %}
                 <tr>
                     <td>
-                        {{ u.name }}
-                        <span class="badge bg-secondary ms-2">
-                            {{ u.role|capitalize }}
-                        </span>
+                        <div class="d-flex align-items-center">
+                            <img src="{{ url_for('serve_profile_picture', user_id=u.id) }}" 
+                                 alt="{{ u.name }}" 
+                                 class="rounded-circle me-2" 
+                                 width="32" 
+                                 height="32"
+                                 style="object-fit: cover;">
+                            <div>
+                                <strong>{{ u.name }}</strong>
+                                <br>
+                                <span class="badge bg-secondary">
+                                    {{ u.role|capitalize }}
+                                </span>
+                            </div>
+                        </div>
                     </td>
 
                     <td class="text-center">
@@ -55,7 +77,7 @@
                             class="btn btn-outline-success att-btn"
                             data-user-id="{{ u.id }}"
                             data-status="present">
-                            P
+                            <i class="fas fa-check"></i> P
                         </button>
                     </td>
 
@@ -64,7 +86,7 @@
                             class="btn btn-outline-danger att-btn"
                             data-user-id="{{ u.id }}"
                             data-status="absent">
-                            A
+                            <i class="fas fa-times"></i> A
                         </button>
                     </td>
 
@@ -73,7 +95,7 @@
                             class="btn btn-outline-warning att-btn"
                             data-user-id="{{ u.id }}"
                             data-status="excused">
-                            E
+                            <i class="fas fa-exclamation"></i> E
                         </button>
                     </td>
                 </tr>
@@ -82,12 +104,56 @@
         </table>
         </div>
 
-        <div class="mt-3 text-muted small">
-            One click = saved. Rows lock automatically after marking.
+        <div class="mt-3 p-3 bg-light rounded">
+            <h6 class="fw-bold mb-2">
+                <i class="fas fa-info-circle text-primary me-2"></i>Instructions
+            </h6>
+            <ul class="small mb-0">
+                <li>Select a session from the dropdown above</li>
+                <li>Click once on Present (P), Absent (A), or Excused (E) to mark attendance</li>
+                <li>The row will lock automatically after marking</li>
+                <li>Use the "Download Report" button to export attendance data</li>
+                <li>Lock the session to prevent further changes</li>
+            </ul>
         </div>
+        {% endif %}
 
     </div>
 </div>
 
 <script src="{{ url_for('static', filename='attendance.js') }}"></script>
+
+<script>
+// Additional debugging
+console.log("Attendance page loaded");
+console.log("Download link element:", document.getElementById("download-link"));
+console.log("Session select element:", document.getElementById("sessionSelect"));
+</script>
+
+<style>
+.att-btn {
+    min-width: 70px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.att-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.att-btn:disabled {
+    cursor: not-allowed;
+}
+
+#download-link.disabled {
+    pointer-events: none !important;
+    opacity: 0.6 !important;
+}
+
+#download-link:not(.disabled) {
+    pointer-events: auto !important;
+    opacity: 1 !important;
+}
+</style>
 {% endblock %}

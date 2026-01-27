@@ -4,6 +4,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const lockButton = document.getElementById("lock-session-btn");
     const lockStatus = document.getElementById("lock-status");
 
+    // Debug logging
+    console.log("Attendance.js loaded");
+    console.log("Session select:", sessionSelect);
+    console.log("Download link:", downloadLink);
+
     async function checkSessionLock(sessionId) {
         try {
             const res = await fetch(`/api/session/${sessionId}/status`);
@@ -38,6 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (lockButton) {
                     lockButton.disabled = false;
                     lockButton.innerHTML = '<i class="fas fa-lock me-2"></i>Lock Session';
+                    lockButton.style.display = 'inline-block';
                 }
             }
             
@@ -48,33 +54,54 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // FIX: Ensure sessionSelect exists before adding event listener
-    if (sessionSelect && downloadLink) {
+    // FIX: Main event listener for session selection
+    if (sessionSelect) {
         sessionSelect.addEventListener("change", async () => {
             const sessionId = sessionSelect.value;
-            if (sessionId) {
-                // FIX: Ensure sessionId is properly passed to the download URL
-                downloadLink.href = `/export/attendance/${sessionId}`;
+            console.log("Session changed to:", sessionId);
+            
+            if (sessionId && downloadLink) {
+                // FIX: Properly enable the download link
+                const downloadUrl = `/export/attendance/${sessionId}`;
+                console.log("Setting download URL to:", downloadUrl);
+                
+                downloadLink.href = downloadUrl;
                 downloadLink.removeAttribute("disabled");
                 downloadLink.classList.remove("disabled");
                 
+                // Make sure it's clickable
+                downloadLink.style.pointerEvents = "auto";
+                downloadLink.style.opacity = "1";
+                
+                console.log("Download link enabled");
+                
                 // Check if session is locked
                 await checkSessionLock(sessionId);
-            } else {
+            } else if (downloadLink) {
                 downloadLink.href = "#";
                 downloadLink.setAttribute("disabled", "true");
                 downloadLink.classList.add("disabled");
+                downloadLink.style.pointerEvents = "none";
+                downloadLink.style.opacity = "0.6";
                 
                 if (lockStatus) {
                     lockStatus.innerHTML = '';
                 }
+                
+                if (lockButton) {
+                    lockButton.style.display = 'none';
+                }
             }
         });
+    } else {
+        console.warn("Session select element not found");
     }
 
     // Lock session button handler
     if (lockButton) {
         lockButton.addEventListener("click", async () => {
+            if (!sessionSelect) return;
+            
             const sessionId = sessionSelect.value;
             
             if (!sessionId) {
@@ -115,6 +142,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // Attendance button handlers
     document.querySelectorAll(".att-btn").forEach(btn => {
         btn.addEventListener("click", async () => {
             if (btn.disabled) return;
@@ -131,7 +159,12 @@ document.addEventListener("DOMContentLoaded", () => {
             btn.disabled = true;
 
             try {
-                const res = await fetch("/api/attendance", {
+                // Determine which endpoint to use based on page context
+                const endpoint = document.querySelector('[data-attendance-type="core"]') 
+                    ? "/api/attendance/core" 
+                    : "/api/attendance";
+
+                const res = await fetch(endpoint, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"
@@ -167,6 +200,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 btn.disabled = false;
 
             } catch (err) {
+                console.error("Attendance error:", err);
                 btn.disabled = false;
                 alert("Network error.");
             }
@@ -176,6 +210,16 @@ document.addEventListener("DOMContentLoaded", () => {
     // Check initial lock status if session is pre-selected
     if (sessionSelect && sessionSelect.value) {
         checkSessionLock(sessionSelect.value);
+        
+        // Also enable download if session is selected
+        if (downloadLink) {
+            const downloadUrl = `/export/attendance/${sessionSelect.value}`;
+            downloadLink.href = downloadUrl;
+            downloadLink.removeAttribute("disabled");
+            downloadLink.classList.remove("disabled");
+            downloadLink.style.pointerEvents = "auto";
+            downloadLink.style.opacity = "1";
+        }
     }
 });
 
