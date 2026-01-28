@@ -150,6 +150,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
             try {
                 const endpoint = document.querySelector('[data-attendance-type="core"]') 
@@ -172,11 +173,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 if (res.ok && data.success) {
                     lockRow(userId, status);
+                    btn.innerHTML = '<i class="fas fa-check"></i>';
+                    setTimeout(() => {
+                        btn.innerHTML = getButtonIcon(status);
+                    }, 1000);
                     return;
                 }
 
                 if (data.error === "already_marked") {
                     lockRow(userId, status);
+                    btn.innerHTML = '<i class="fas fa-check"></i>';
+                    alert("This attendance was already marked.");
                     return;
                 }
 
@@ -185,24 +192,28 @@ document.addEventListener("DOMContentLoaded", () => {
                 } else if (data.error === "forbidden") {
                     alert("You do not have permission to mark attendance.");
                 } else {
-                    alert("Failed to save attendance.");
+                    alert("Failed to save attendance: " + (data.error || "Unknown error"));
                 }
 
                 btn.disabled = false;
+                btn.innerHTML = getButtonIcon(status);
 
             } catch (err) {
                 console.error("Attendance error:", err);
                 btn.disabled = false;
-                alert("Network error.");
+                btn.innerHTML = getButtonIcon(status);
+                alert("Network error. Please try again.");
             }
         });
     });
     
+    // Initialize on page load if session is already selected
     if (sessionSelect && sessionSelect.value) {
-        checkSessionLock(sessionSelect.value);
+        const sessionId = sessionSelect.value;
+        checkSessionLock(sessionId);
         
         if (downloadLink) {
-            const downloadUrl = `/export/attendance/${sessionSelect.value}`;
+            const downloadUrl = `/export/attendance/${sessionId}`;
             downloadLink.href = downloadUrl;
             downloadLink.removeAttribute("disabled");
             downloadLink.classList.remove("disabled");
@@ -211,6 +222,16 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 });
+
+function getButtonIcon(status) {
+    const icons = {
+        'present': '<i class="fas fa-check"></i> P',
+        'absent': '<i class="fas fa-times"></i> A',
+        'excused': '<i class="fas fa-exclamation"></i> E',
+        'late': '<i class="fas fa-clock"></i> L'
+    };
+    return icons[status] || status;
+}
 
 function lockRow(userId, activeStatus) {
     document.querySelectorAll(`[data-user-id="${userId}"]`).forEach(btn => {

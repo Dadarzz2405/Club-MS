@@ -17,6 +17,7 @@ from io import TextIOWrapper, StringIO, BytesIO
 from docx import Document
 from formatter import format_attendance
 from summarizer import summarize_notulensi
+from sqlalchemy.exc import IntegrityError
 #config for the pfp
 UPLOAD_FOLDER = 'static/uploads/profiles'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
@@ -128,7 +129,7 @@ def create_session():
     return render_template('create_session.html', pics=pics)
 #idk why the hell the import is here but just go on lah ya...
 from datetime import date
-@app.route('/api/attendance', methods=['POST'])
+app.route('/api/attendance', methods=['POST'])
 @login_required
 def api_attendance():
     data = request.get_json()
@@ -138,25 +139,33 @@ def api_attendance():
     status = data.get("status")
 
     if not all([session_id, user_id, status]):
-        return jsonify({"error": "invalid_data"}), 400
+        return jsonify({"error": "invalid_data", "message": "Missing required fields"}), 400
 
-    session = Session.query.get_or_404(session_id)
+    try:
+        session_id = int(session_id)
+        user_id = int(user_id)
+    except (ValueError, TypeError):
+        return jsonify({"error": "invalid_data", "message": "Invalid ID format"}), 400
+
+    session = Session.query.get(session_id)
+    if not session:
+        return jsonify({"error": "invalid_data", "message": "Session not found"}), 404
 
     if session.is_locked:
-        return jsonify({"error": "session_locked"}), 403
+        return jsonify({"error": "session_locked", "message": "This session is locked"}), 403
 
     if not can_mark_attendance(current_user, session.pic_id):
-        return jsonify({"error": "forbidden"}), 403
+        return jsonify({"error": "forbidden", "message": "You don't have permission"}), 403
 
-
-    record = Attendance.query.filter_by(
+    # Check if already marked
+    existing_record = Attendance.query.filter_by(
         session_id=session_id,
         user_id=user_id,
         attendance_type='regular'
     ).first()
 
-    if record:
-        return jsonify({"error": "already_marked"}), 409
+    if existing_record:
+        return jsonify({"error": "already_marked", "message": "Attendance already recorded"}), 409
 
     wib = timezone(timedelta(hours=7))
     attendance = Attendance(
@@ -166,11 +175,18 @@ def api_attendance():
         attendance_type='regular',
         timestamp=datetime.now(wib)
     )
-
-    db.session.add(attendance)
-    db.session.commit()
-
-    return jsonify({"success": True})
+    try:
+        db.session.add(attendance)
+        db.session.commit()
+        return jsonify({"success": True})
+    except IntegrityError as e:
+        db.session.rollback()
+        print(f"Integrity error: {e}")
+        return jsonify({"error": "already_marked", "message": "Attendance already recorded"}), 409
+    except Exception as e:
+        db.session.rollback()
+        print(f"Database error: {e}")
+        return jsonify({"error": "database_error", "message": str(e)}), 500
 #CORE FUNCTIONNNN!!!
 @app.route("/attendance/core")
 @login_required
@@ -193,7 +209,7 @@ def attendance_core():
 @login_required
 def api_attendance_core():
     if not is_core_user(current_user):
-        return jsonify({"error": "forbidden"}), 403
+        return jsonify({"error": "forbidden", "message": "Access denied"}), 403
 
     data = request.get_json()
     session_id = data.get("session_id")
@@ -201,26 +217,37 @@ def api_attendance_core():
     status = data.get("status")
 
     if not all([session_id, user_id, status]):
-        return jsonify({"error": "invalid_data"}), 400
+        return jsonify({"error": "invalid_data", "message": "Missing required fields"}), 400
 
-    session = Session.query.get_or_404(session_id)
+    try:
+        session_id = int(session_id)
+        user_id = int(user_id)
+    except (ValueError, TypeError):
+        return jsonify({"error": "invalid_data", "message": "Invalid ID format"}), 400
+
+    session = Session.query.get(session_id)
+    if not session:
+        return jsonify({"error": "invalid_data", "message": "Session not found"}), 404
 
     if session.is_locked:
-        return jsonify({"error": "session_locked"}), 403
+        return jsonify({"error": "session_locked", "message": "This session is locked"}), 403
 
-    user = User.query.get_or_404(user_id)
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"error": "invalid_data", "message": "User not found"}), 404
 
     if not is_core_user(user):
-        return jsonify({"error": "not_core_user"}), 400
+        return jsonify({"error": "not_core_user", "message": "User is not a core member"}), 400
 
-    exists = Attendance.query.filter_by(
+    # Check if already marked
+    existing_record = Attendance.query.filter_by(
         session_id=session_id,
         user_id=user_id,
         attendance_type="core"
     ).first()
 
-    if exists:
-        return jsonify({"error": "already_marked"}), 409
+    if existing_record:
+        return jsonify({"error": "already_marked", "message": "Attendance already recorded"}), 409
 
     wib = timezone(timedelta(hours=7))
     att = Attendance(
@@ -231,11 +258,19 @@ def api_attendance_core():
         timestamp=datetime.now(wib)
     )
 
-    db.session.add(att)
-    db.session.commit()
-
-    return jsonify({"success": True})
-
+    try:
+        db.session.add(att)
+        db.session.commit()
+        return jsonify({"success": True})
+    except IntegrityError as e:
+        db.session.rollback()
+        print(f"Integrity error: {e}")
+        return jsonify({"error": "already_marked", "message": "Attendance already recorded"}), 409
+    except Exception as e:
+        db.session.rollback()
+        print(f"Database error: {e}")
+        return jsonify({"error": "database_error", "message": str(e)}), 500
+    
 @app.route("/api/session/<int:session_id>/status", methods=["GET"])
 @login_required
 def get_session_status(session_id):
