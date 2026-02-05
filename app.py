@@ -5,6 +5,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_bcrypt import Bcrypt
 import os
+from dotenv import load_dotenv
 from models import (
     Pic, db, User, Session, Attendance, Notulensi,
     Division, JadwalPiket, PiketAssignment, EmailReminderLog
@@ -26,7 +27,12 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import List, Dict
 from email_service import get_email_service
+import logging
 
+# Load environment variables from .env file in development
+load_dotenv()
+
+logger = logging.getLogger(__name__)
 UPLOAD_FOLDER = 'static/uploads/profiles'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
 #init for all the librariessss
@@ -983,29 +989,16 @@ def forbidden(e):
 # ============================================================================
 
 @app.route('/api/cron/piket-reminder', methods=['POST'])
+@app.route('/api/cron/piket-reminder', methods=['POST'])
 def cron_piket_reminder():
-    """
-    This endpoint is called daily at 06:00 WIB by an external cron service.
-    It sends email reminders to people assigned to today's piket duty.
-    
-    Security: Requires a secret token to prevent unauthorized access.
-    """
-    # Verify secret token
-    secret_token = request.headers.get('X-Cron-Secret')
     expected_token = os.environ.get('CRON_SECRET_TOKEN')
     
     if not expected_token:
+        app.logger.error("CRON_SECRET_TOKEN not set - piket reminders disabled")
         return jsonify({
             'success': False,
-            'error': 'CRON_SECRET_TOKEN not configured on server'
-        }), 500
-    
-    if secret_token != expected_token:
-        return jsonify({
-            'success': False,
-            'error': 'Invalid or missing secret token'
-        }), 403
-    
+            'error': 'Service not configured'
+        }), 503 
     try:
         # Get current day in WIB timezone (UTC+7)
         wib = timezone(timedelta(hours=7))

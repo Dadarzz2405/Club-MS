@@ -3,13 +3,11 @@ Email service for sending jadwal piket reminders.
 Uses Resend API (free tier: 100 emails/day, 3,000/month)
 No 2FA or app passwords needed - just an API key!
 """
-
 import os
 import requests
 from datetime import datetime
 from typing import List, Dict
 import json
-
 
 class EmailService:
     """Handle email sending for piket reminders using Resend API"""
@@ -54,7 +52,7 @@ class EmailService:
             }
         
         # Email content
-        subject = f"🧹 Reminder: Jadwal Piket {day_name}"
+        subject = f"Reminder: Jadwal Piket {day_name}"
         
         html_body = self._generate_email_html(
             day_name=day_name,

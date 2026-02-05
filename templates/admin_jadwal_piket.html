@@ -90,12 +90,12 @@
                             <button class="btn btn-sm btn-primary" 
                                     data-bs-toggle="modal" 
                                     data-bs-target="#editModal"
-                                    onclick="openEditModal({{ day.day_of_week }}, '{{ day.day_name }}', {{ day.assignments|tojson }})">
+                                    onclick="openEditModal({{ day.day_of_week }}, '{{ day.day_name | escape }}', {{ day.assignments|tojson }})">
                                 <i class="fas fa-edit me-1"></i>Edit
                             </button>
                             {% if day.assignments %}
                             <button class="btn btn-sm btn-warning" 
-                                    onclick="testReminder({{ day.day_of_week }}, '{{ day.day_name }}')">
+                                    onclick="testReminder({{ day.day_of_week }}, '{{ day.day_name | escape }}')">
                                 <i class="fas fa-paper-plane me-1"></i>Test
                             </button>
                             <form method="POST" 

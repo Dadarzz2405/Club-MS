@@ -117,14 +117,14 @@
                                 <button class="btn btn-sm btn-outline-info" 
                                         data-bs-toggle="modal" 
                                         data-bs-target="#detailModal"
-                                        onclick="showDetails('{{ log.day_name }}', '{{ log.sent_at.strftime('%d %b %Y %H:%M') }}', {{ log.recipients|tojson }}, '{{ log.error_message|replace("'", "\\'") }}', '{{ log.status }}')">
+                                        onclick="showDetails('{{ log.day_name | escape }}', '{{ log.sent_at.strftime('%Y-%m-%d %H:%M') }}', {{ log.recipients|tojson }}, '{{ log.error_message|replace("'", "\\'") | escape }}', '{{ log.status }}')">
                                     <i class="fas fa-info-circle me-1"></i>View
                                 </button>
                             {% else %}
                                 <button class="btn btn-sm btn-outline-success" 
                                         data-bs-toggle="modal" 
                                         data-bs-target="#detailModal"
-                                        onclick="showDetails('{{ log.day_name }}', '{{ log.sent_at.strftime('%d %b %Y %H:%M') }}', {{ log.recipients|tojson }}, null, '{{ log.status }}')">
+                                        onclick="showDetails('{{ log.day_name | escape }}', '{{ log.sent_at.strftime('%Y-%m-%d %H:%M') }}', {{ log.recipients|tojson }}, null, '{{ log.status }}')">
                                     <i class="fas fa-envelope me-1"></i>Recipients
                                 </button>
                             {% endif %}
