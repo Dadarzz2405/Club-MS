@@ -52,6 +52,16 @@ attendance_bp = Blueprint("attendance", __name__)
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+#cofee for the render service
+@app.route('/health', methods=['GET'])
+def health_check():
+    from datetime import datetime
+    return jsonify({
+        'status': 'ok',
+        'service': 'Rohis Attendance System',
+        'timestamp': datetime.utcnow().isoformat(),
+        'message': 'App is awake and running'
+    })
 #Login, no need comment actually
 @app.route('/login', methods=['GET', 'POST'])
 def login():
