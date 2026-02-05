@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}Jadwal Piket — Rohis{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow p-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="fw-bold mb-2">
+                    <i class="fas fa-broom text-primary me-2"></i>Weekly Piket Schedule
+                </h2>
+                <p class="text-muted mb-0">
+                    View the weekly duty schedule. You'll receive email reminders on your assigned days.
+                </p>
+            </div>
+            <a href="{% if current_user.role in ['admin', 'ketua', 'pembina'] %}{{ url_for('dashboard_admin') }}{% else %}{{ url_for('dashboard_member') }}{% endif %}" 
+               class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back
+            </a>
+        </div>
+
+        <!-- Info Banner -->
+        <div class="alert alert-info mb-4">
+            <div class="d-flex align-items-start">
+                <i class="fas fa-bell fa-2x me-3 mt-1"></i>
+                <div>
+                    <h6 class="fw-bold mb-2">Automatic Reminders</h6>
+                    <p class="mb-0 small">
+                        You will receive an email reminder at <strong>06:00 WIB</strong> on days you are assigned to piket duty.
+                        Please ensure your email address is up to date in your profile.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Weekly Schedule Cards -->
+        <div class="row g-3">
+            {% for day in schedule %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 {% if day.is_today %}border-primary border-2{% endif %} shadow-sm hover-card">
+                    <!-- Card Header -->
+                    <div class="card-header {% if day.is_today %}bg-primary text-white{% else %}bg-light{% endif %}">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0 fw-bold">
+                                <i class="fas fa-calendar-day me-2"></i>{{ day.day_name }}
+                            </h5>
+                            {% if day.is_today %}
+                            <span class="badge bg-warning text-dark">
+                                <i class="fas fa-star me-1"></i>TODAY
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Card Body -->
+                    <div class="card-body">
+                        {% if day.assignments %}
+                            <h6 class="text-muted mb-3 small">
+                                <i class="fas fa-users me-2"></i>Assigned Members:
+                            </h6>
+                            <div class="list-group list-group-flush">
+                                {% for member in day.assignments %}
+                                <div class="list-group-item px-0 py-2 border-0">
+                                    <div class="d-flex align-items-center">
+                                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-3"
+                                             style="width: 40px; height: 40px; min-width: 40px;">
+                                            <i class="fas fa-user"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <div class="fw-bold {% if member.is_current_user %}text-primary{% endif %}">
+                                                {{ member.name }}
+                                                {% if member.is_current_user %}
+                                                <span class="badge bg-success ms-2">You</span>
+                                                {% endif %}
+                                            </div>
+                                            <small class="text-muted">
+                                                <i class="fas fa-graduation-cap me-1"></i>{{ member.class or 'N/A' }}
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                                <p class="text-muted mb-0">No members assigned</p>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Card Footer -->
+                    {% if day.assignments %}
+                    <div class="card-footer bg-light">
+                        <small class="text-muted">
+                            <i class="fas fa-user-friends me-1"></i>
+                            {{ day.assignments|length }} member{{ 's' if day.assignments|length != 1 else '' }}
+                        </small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Legend -->
+        <div class="mt-4">
+            <div class="card bg-light border-0">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3">
+                        <i class="fas fa-info-circle me-2"></i>Important Notes:
+                    </h6>
+                    <ul class="mb-0 small">
+                        <li class="mb-2">
+                            <strong>Daily Reminders:</strong> You'll receive an email at 06:00 WIB on your assigned days
+                        </li>
+                        <li class="mb-2">
+                            <strong>Duties:</strong> Arrive 10 minutes early, clean designated areas, and report any issues
+                        </li>
+                        <li class="mb-2">
+                            <strong>Questions?</strong> Contact your admin or PIC if you need to swap days or have concerns
+                        </li>
+                        <li>
+                            <strong>Update Profile:</strong> Make sure your email address is correct to receive reminders
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Your Assignments Summary -->
+        {% set user_days = [] %}
+        {% for day in schedule %}
+            {% for member in day.assignments %}
+                {% if member.is_current_user %}
+                    {{ user_days.append(day.day_name) or '' }}
+                {% endif %}
+            {% endfor %}
+        {% endfor %}
+
+        {% if user_days %}
+        <div class="mt-4">
+            <div class="alert alert-success">
+                <h6 class="fw-bold mb-2">
+                    <i class="fas fa-user-check me-2"></i>Your Piket Days:
+                </h6>
+                <div class="d-flex flex-wrap gap-2">
+                    {% for day_name in user_days %}
+                    <span class="badge bg-success px-3 py-2">
+                        <i class="fas fa-calendar-day me-1"></i>{{ day_name }}
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="mt-4">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                You are not currently assigned to any piket days. Contact your admin if this is incorrect.
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.hover-card {
+    transition: all 0.3s ease;
+}
+
+.hover-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15) !important;
+}
+
+.list-group-item {
+    transition: background-color 0.2s ease;
+}
+
+.list-group-item:hover {
+    background-color: var(--primary-light);
+}
+
+.card.border-primary {
+    animation: pulseGlow 2s infinite;
+}
+
+@keyframes pulseGlow {
+    0%, 100% {
+        box-shadow: 0 0 10px rgba(5, 150, 105, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(5, 150, 105, 0.5);
+    }
+}
+</style>
+{% endblock %}

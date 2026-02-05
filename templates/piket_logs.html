@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+
+{% block title %}Email Reminder Logs — Rohis{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow p-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="fw-bold mb-2">
+                    <i class="fas fa-history text-primary me-2"></i>Email Reminder Logs
+                </h2>
+                <p class="text-muted mb-0">
+                    History of all piket reminder emails sent by the system
+                </p>
+            </div>
+            <a href="{{ url_for('admin_jadwal_piket') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Schedule
+            </a>
+        </div>
+
+        {% if logs %}
+        <!-- Summary Cards -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="card border-success">
+                    <div class="card-body text-center">
+                        <h3 class="text-success mb-0">
+                            {{ logs|selectattr('status', 'equalto', 'success')|list|length }}
+                        </h3>
+                        <small class="text-muted">Successful</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-warning">
+                    <div class="card-body text-center">
+                        <h3 class="text-warning mb-0">
+                            {{ logs|selectattr('status', 'equalto', 'partial')|list|length }}
+                        </h3>
+                        <small class="text-muted">Partial Success</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-danger">
+                    <div class="card-body text-center">
+                        <h3 class="text-danger mb-0">
+                            {{ logs|selectattr('status', 'in', ['failed', 'skipped'])|list|length }}
+                        </h3>
+                        <small class="text-muted">Failed/Skipped</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs Table -->
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Date & Time</th>
+                        <th>Day</th>
+                        <th class="text-center">Recipients</th>
+                        <th class="text-center">Status</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td>
+                            <div class="fw-bold">
+                                {{ log.sent_at.strftime('%d %b %Y') }}
+                            </div>
+                            <small class="text-muted">
+                                <i class="fas fa-clock me-1"></i>
+                                {{ log.sent_at.strftime('%H:%M:%S') }} UTC
+                            </small>
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark border">
+                                {{ log.day_name }}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            {% if log.recipients_count > 0 %}
+                                <span class="badge bg-primary px-3 py-2">
+                                    <i class="fas fa-users me-1"></i>
+                                    {{ log.recipients_count }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if log.status == 'success' %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check-circle me-1"></i>Success
+                                </span>
+                            {% elif log.status == 'partial' %}
+                                <span class="badge bg-warning">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>Partial
+                                </span>
+                            {% elif log.status == 'skipped' %}
+                                <span class="badge bg-secondary">
+                                    <i class="fas fa-forward me-1"></i>Skipped
+                                </span>
+                            {% else %}
+                                <span class="badge bg-danger">
+                                    <i class="fas fa-times-circle me-1"></i>Failed
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if log.error_message %}
+                                <button class="btn btn-sm btn-outline-info" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#detailModal"
+                                        onclick="showDetails('{{ log.day_name }}', '{{ log.sent_at.strftime('%d %b %Y %H:%M') }}', {{ log.recipients|tojson }}, '{{ log.error_message|replace("'", "\\'") }}', '{{ log.status }}')">
+                                    <i class="fas fa-info-circle me-1"></i>View
+                                </button>
+                            {% else %}
+                                <button class="btn btn-sm btn-outline-success" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#detailModal"
+                                        onclick="showDetails('{{ log.day_name }}', '{{ log.sent_at.strftime('%d %b %Y %H:%M') }}', {{ log.recipients|tojson }}, null, '{{ log.status }}')">
+                                    <i class="fas fa-envelope me-1"></i>Recipients
+                                </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Info -->
+        <div class="mt-3 text-muted small">
+            <i class="fas fa-info-circle me-2"></i>
+            Showing last 100 email logs. Older logs are automatically archived.
+        </div>
+
+        {% else %}
+        <!-- Empty State -->
+        <div class="text-center py-5">
+            <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+            <h5 class="text-muted">No email logs yet</h5>
+            <p class="text-muted">
+                Email reminder logs will appear here once the system starts sending reminders.
+            </p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal fade" id="detailModal" tabindex="-1" aria-labelledby="detailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="detailModalLabel">
+                    <i class="fas fa-info-circle me-2"></i>Email Log Details
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <h6 class="fw-bold">Day:</h6>
+                    <p id="detail_day" class="mb-0"></p>
+                </div>
+                <div class="mb-3">
+                    <h6 class="fw-bold">Sent At:</h6>
+                    <p id="detail_sent_at" class="mb-0"></p>
+                </div>
+                <div class="mb-3">
+                    <h6 class="fw-bold">Status:</h6>
+                    <p id="detail_status" class="mb-0"></p>
+                </div>
+                <div class="mb-3" id="recipients_section">
+                    <h6 class="fw-bold">Recipients:</h6>
+                    <div id="detail_recipients" class="d-flex flex-wrap gap-2"></div>
+                </div>
+                <div class="mb-3" id="error_section" style="display: none;">
+                    <h6 class="fw-bold text-danger">Error Message:</h6>
+                    <div class="alert alert-danger mb-0">
+                        <code id="detail_error"></code>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showDetails(day, sentAt, recipients, errorMessage, status) {
+    document.getElementById('detail_day').textContent = day;
+    document.getElementById('detail_sent_at').textContent = sentAt;
+    
+    // Status badge
+    let statusHtml = '';
+    if (status === 'success') {
+        statusHtml = '<span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Success</span>';
+    } else if (status === 'partial') {
+        statusHtml = '<span class="badge bg-warning"><i class="fas fa-exclamation-triangle me-1"></i>Partial Success</span>';
+    } else if (status === 'skipped') {
+        statusHtml = '<span class="badge bg-secondary"><i class="fas fa-forward me-1"></i>Skipped</span>';
+    } else {
+        statusHtml = '<span class="badge bg-danger"><i class="fas fa-times-circle me-1"></i>Failed</span>';
+    }
+    document.getElementById('detail_status').innerHTML = statusHtml;
+    
+    // Recipients
+    const recipientsDiv = document.getElementById('detail_recipients');
+    const recipientsSection = document.getElementById('recipients_section');
+    
+    try {
+        const recipientList = JSON.parse(recipients);
+        if (recipientList && recipientList.length > 0) {
+            recipientsDiv.innerHTML = recipientList.map(email => 
+                `<span class="badge bg-primary px-3 py-2"><i class="fas fa-envelope me-1"></i>${email}</span>`
+            ).join('');
+            recipientsSection.style.display = 'block';
+        } else {
+            recipientsSection.style.display = 'none';
+        }
+    } catch (e) {
+        recipientsSection.style.display = 'none';
+    }
+    
+    // Error message
+    const errorSection = document.getElementById('error_section');
+    if (errorMessage && errorMessage !== 'null') {
+        document.getElementById('detail_error').textContent = errorMessage;
+        errorSection.style.display = 'block';
+    } else {
+        errorSection.style.display = 'none';
+    }
+}
+</script>
+
+<style>
+.table tbody tr {
+    transition: all 0.2s ease;
+}
+
+.table tbody tr:hover {
+    background-color: var(--primary-light);
+    transform: scale(1.01);
+}
+
+code {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+</style>
+{% endblock %}

@@ -58,3 +58,51 @@ class Notulensi(db.Model):
     updated_at = db.Column(db.DateTime, onupdate=datetime.utcnow)
 
     session = db.relationship("Session", backref="notulensi")
+
+
+class JadwalPiket(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    day_of_week = db.Column(db.Integer, nullable=False)  
+    day_name = db.Column(db.String(20), nullable=False)  
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, onupdate=datetime.utcnow)
+    
+    assignments = db.relationship('PiketAssignment', backref='jadwal', lazy=True, cascade='all, delete-orphan')
+    
+    __table_args__ = (
+        db.UniqueConstraint('day_of_week', name='unique_day_of_week'),
+    )
+    
+    def __repr__(self):
+        return f'<JadwalPiket {self.day_name}>'
+
+
+class PiketAssignment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    jadwal_id = db.Column(db.Integer, db.ForeignKey('jadwal_piket.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationship to user
+    user = db.relationship('User', backref='piket_assignments')
+    
+    __table_args__ = (
+        db.UniqueConstraint('jadwal_id', 'user_id', name='unique_jadwal_user'),
+    )
+    
+    def __repr__(self):
+        return f'<PiketAssignment Day:{self.jadwal_id} User:{self.user_id}>'
+
+
+class EmailReminderLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    day_of_week = db.Column(db.Integer, nullable=False)
+    day_name = db.Column(db.String(20), nullable=False)
+    recipients_count = db.Column(db.Integer, default=0)
+    recipients = db.Column(db.Text)  # JSON string of email addresses
+    sent_at = db.Column(db.DateTime, default=datetime.utcnow)
+    status = db.Column(db.String(20), default='success')  # 'success' or 'failed'
+    error_message = db.Column(db.Text, nullable=True)
+    
+    def __repr__(self):
+        return f'<EmailReminderLog {self.day_name} - {self.sent_at}>'

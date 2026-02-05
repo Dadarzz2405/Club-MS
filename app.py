@@ -5,7 +5,10 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_bcrypt import Bcrypt
 import os
-from models import Pic, db, User, Session, Attendance, Notulensi
+from models import (
+    Pic, db, User, Session, Attendance, Notulensi,
+    Division, JadwalPiket, PiketAssignment, EmailReminderLog
+)
 from datetime import datetime, date, timezone, timedelta
 from ummalqura.hijri_date import HijriDate
 import json
@@ -18,7 +21,12 @@ from docx import Document
 from formatter import format_attendance
 from summarizer import summarize_notulensi
 from sqlalchemy.exc import IntegrityError
-#config for the pfp
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from typing import List, Dict
+from email_service import get_email_service
+
 UPLOAD_FOLDER = 'static/uploads/profiles'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
 #init for all the librariessss
@@ -969,6 +977,398 @@ def news_feed():
 @app.errorhandler(403)
 def forbidden(e):
     return render_template('403.html'), 403
+
+# ============================================================================
+# CRON ENDPOINT - Called by external scheduler (cron-job.org)
+# ============================================================================
+
+@app.route('/api/cron/piket-reminder', methods=['POST'])
+def cron_piket_reminder():
+    """
+    This endpoint is called daily at 06:00 WIB by an external cron service.
+    It sends email reminders to people assigned to today's piket duty.
+    
+    Security: Requires a secret token to prevent unauthorized access.
+    """
+    # Verify secret token
+    secret_token = request.headers.get('X-Cron-Secret')
+    expected_token = os.environ.get('CRON_SECRET_TOKEN')
+    
+    if not expected_token:
+        return jsonify({
+            'success': False,
+            'error': 'CRON_SECRET_TOKEN not configured on server'
+        }), 500
+    
+    if secret_token != expected_token:
+        return jsonify({
+            'success': False,
+            'error': 'Invalid or missing secret token'
+        }), 403
+    
+    try:
+        # Get current day in WIB timezone (UTC+7)
+        wib = timezone(timedelta(hours=7))
+        now_wib = datetime.now(wib)
+        
+        # Get day of week (0=Monday, 6=Sunday)
+        day_of_week = now_wib.weekday()
+        day_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        day_name = day_names[day_of_week]
+        date_str = now_wib.strftime('%d %B %Y')
+        
+        # Find jadwal for today
+        jadwal = JadwalPiket.query.filter_by(day_of_week=day_of_week).first()
+        
+        if not jadwal:
+            # No jadwal configured for this day - log and return
+            log = EmailReminderLog(
+                day_of_week=day_of_week,
+                day_name=day_name,
+                recipients_count=0,
+                recipients='[]',
+                status='skipped',
+                error_message='No jadwal piket configured for this day'
+            )
+            db.session.add(log)
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'No piket scheduled for {day_name}',
+                'day': day_name,
+                'date': date_str,
+                'recipients_count': 0
+            }), 200
+        
+        # Get assigned users for today
+        assignments = PiketAssignment.query.filter_by(jadwal_id=jadwal.id).all()
+        
+        if not assignments:
+            # Jadwal exists but no members assigned
+            log = EmailReminderLog(
+                day_of_week=day_of_week,
+                day_name=day_name,
+                recipients_count=0,
+                recipients='[]',
+                status='skipped',
+                error_message='No members assigned to this day'
+            )
+            db.session.add(log)
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'No members assigned for {day_name}',
+                'day': day_name,
+                'date': date_str,
+                'recipients_count': 0
+            }), 200
+        
+        # Collect recipient emails
+        recipients = []
+        for assignment in assignments:
+            user = assignment.user
+            if user and user.email:
+                recipients.append(user.email)
+        
+        if not recipients:
+            # Assignments exist but no valid emails
+            log = EmailReminderLog(
+                day_of_week=day_of_week,
+                day_name=day_name,
+                recipients_count=0,
+                recipients='[]',
+                status='failed',
+                error_message='No valid email addresses found for assigned members'
+            )
+            db.session.add(log)
+            db.session.commit()
+            
+            return jsonify({
+                'success': False,
+                'error': 'No valid email addresses found',
+                'day': day_name,
+                'date': date_str
+            }), 500
+        
+        # Send emails
+        email_service = get_email_service()
+        result = email_service.send_piket_reminder(
+            recipients=recipients,
+            day_name=day_name,
+            date_str=date_str,
+            additional_info=""  # Can be customized
+        )
+        
+        # Log the reminder
+        log = EmailReminderLog(
+            day_of_week=day_of_week,
+            day_name=day_name,
+            recipients_count=len(recipients),
+            recipients=json.dumps(recipients),
+            status='success' if result['success'] else 'partial',
+            error_message=result.get('message') if not result['success'] else None
+        )
+        db.session.add(log)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': result['message'],
+            'day': day_name,
+            'date': date_str,
+            'recipients_count': len(recipients),
+            'failed_emails': result.get('failed_emails', [])
+        }), 200
+        
+    except Exception as e:
+        # Log the error
+        try:
+            error_log = EmailReminderLog(
+                day_of_week=now_wib.weekday() if 'now_wib' in locals() else -1,
+                day_name='Unknown',
+                recipients_count=0,
+                recipients='[]',
+                status='failed',
+                error_message=str(e)
+            )
+            db.session.add(error_log)
+            db.session.commit()
+        except:
+            pass
+        
+        print(f"Piket reminder error: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+# ============================================================================
+# ADMIN ROUTES - Manage jadwal piket
+# ============================================================================
+
+@app.route('/admin/jadwal-piket', methods=['GET', 'POST'])
+@login_required
+def admin_jadwal_piket():
+    """
+    Admin page to view and manage weekly jadwal piket.
+    GET: Display current schedule
+    POST: Update schedule for a specific day
+    """
+    if current_user.role not in ['admin', 'ketua', 'pembina']:
+        abort(403)
+    
+    if request.method == 'POST':
+        try:
+            data = request.form
+            day_of_week = int(data.get('day_of_week'))
+            user_ids = request.form.getlist('user_ids')
+            
+            # Validate day
+            if day_of_week < 0 or day_of_week > 6:
+                flash('Invalid day of week', 'error')
+                return redirect(url_for('admin_jadwal_piket'))
+            
+            day_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+            day_name = day_names[day_of_week]
+            
+            # Get or create jadwal for this day
+            jadwal = JadwalPiket.query.filter_by(day_of_week=day_of_week).first()
+            if not jadwal:
+                jadwal = JadwalPiket(
+                    day_of_week=day_of_week,
+                    day_name=day_name
+                )
+                db.session.add(jadwal)
+                db.session.flush()  # Get the ID
+            
+            # Remove existing assignments for this day
+            PiketAssignment.query.filter_by(jadwal_id=jadwal.id).delete()
+            
+            # Add new assignments
+            for user_id in user_ids:
+                if user_id:  # Skip empty values
+                    assignment = PiketAssignment(
+                        jadwal_id=jadwal.id,
+                        user_id=int(user_id)
+                    )
+                    db.session.add(assignment)
+            
+            # Update timestamp
+            jadwal.updated_at = datetime.utcnow()
+            
+            db.session.commit()
+            flash(f'Jadwal piket for {day_name} updated successfully!', 'success')
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error updating jadwal piket: {e}")
+            import traceback
+            traceback.print_exc()
+            flash(f'Error updating schedule: {str(e)}', 'error')
+        
+        return redirect(url_for('admin_jadwal_piket'))
+    
+    day_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    
+    schedule = []
+    for day_idx, day_name in enumerate(day_names):
+        jadwal = JadwalPiket.query.filter_by(day_of_week=day_idx).first()
+        
+        assignments = []
+        if jadwal:
+            assignments = [
+                {
+                    'id': a.user.id,
+                    'name': a.user.name,
+                    'email': a.user.email,
+                    'class': a.user.class_name
+                }
+                for a in jadwal.assignments
+            ]
+        
+        schedule.append({
+            'day_of_week': day_idx,
+            'day_name': day_name,
+            'jadwal_id': jadwal.id if jadwal else None,
+            'assignments': assignments,
+            'updated_at': jadwal.updated_at if jadwal else None
+        })
+    
+    all_members = User.query.filter(User.role.in_(['member', 'admin', 'ketua'])).order_by(User.name).all()
+    
+    return render_template(
+        'admin_jadwal_piket.html',
+        schedule=schedule,
+        all_members=all_members
+    )
+
+
+@app.route('/admin/jadwal-piket/clear/<int:day_of_week>', methods=['POST'])
+@login_required
+def clear_jadwal_piket(day_of_week):
+    if current_user.role not in ['admin', 'ketua', 'pembina']:
+        abort(403)
+    
+    try:
+        jadwal = JadwalPiket.query.filter_by(day_of_week=day_of_week).first()
+        if jadwal:
+            PiketAssignment.query.filter_by(jadwal_id=jadwal.id).delete()
+            db.session.commit()
+            flash('Assignments cleared successfully', 'success')
+        else:
+            flash('No schedule found for this day', 'warning')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error clearing assignments: {str(e)}', 'error')
+    
+    return redirect(url_for('admin_jadwal_piket'))
+
+
+# ============================================================================
+# MEMBER ROUTES - View jadwal piket
+# ============================================================================
+
+@app.route('/jadwal-piket')
+@login_required
+def view_jadwal_piket():
+    day_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    
+    wib = timezone(timedelta(hours=7))
+    today = datetime.now(wib).weekday()
+    
+    schedule = []
+    for day_idx, day_name in enumerate(day_names):
+        jadwal = JadwalPiket.query.filter_by(day_of_week=day_idx).first()
+        
+        assignments = []
+        if jadwal:
+            assignments = [
+                {
+                    'name': a.user.name,
+                    'class': a.user.class_name,
+                    'is_current_user': a.user.id == current_user.id
+                }
+                for a in jadwal.assignments
+            ]
+        
+        schedule.append({
+            'day_of_week': day_idx,
+            'day_name': day_name,
+            'assignments': assignments,
+            'is_today': day_idx == today
+        })
+    
+    return render_template('view_jadwal_piket.html', schedule=schedule)
+
+
+# ============================================================================
+# ADMIN ROUTE - View email logs
+# ============================================================================
+
+@app.route('/admin/piket-logs')
+@login_required
+def view_piket_logs():
+    """View email reminder logs (admin only)"""
+    if current_user.role not in ['admin', 'ketua', 'pembina']:
+        abort(403)
+    
+    logs = EmailReminderLog.query.order_by(EmailReminderLog.sent_at.desc()).limit(100).all()
+    
+    return render_template('piket_logs.html', logs=logs)
+
+
+# ============================================================================
+# MANUAL TRIGGER - Test the reminder system
+# ============================================================================
+
+@app.route('/admin/piket-test', methods=['POST'])
+@login_required
+def test_piket_reminder():
+    if current_user.role not in ['admin']:
+        abort(403)
+    
+    try:
+        day_of_week = int(request.form.get('day_of_week', datetime.now().weekday()))
+        
+        day_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        day_name = day_names[day_of_week]
+        
+        jadwal = JadwalPiket.query.filter_by(day_of_week=day_of_week).first()
+        
+        if not jadwal or not jadwal.assignments:
+            flash(f'No assignments found for {day_name}', 'warning')
+            return redirect(url_for('admin_jadwal_piket'))
+        
+        recipients = [a.user.email for a in jadwal.assignments if a.user.email]
+        
+        if not recipients:
+            flash('No valid email addresses found', 'error')
+            return redirect(url_for('admin_jadwal_piket'))
+        
+        email_service = get_email_service()
+        result = email_service.send_piket_reminder(
+            recipients=recipients,
+            day_name=day_name,
+            date_str=datetime.now().strftime('%d %B %Y'),
+            additional_info="⚠️ This is a TEST reminder from the admin panel."
+        )
+        
+        if result['success']:
+            flash(f"Test reminder sent to {len(recipients)} recipients", 'success')
+        else:
+            flash(f"Error: {result['message']}", 'error')
+        
+    except Exception as e:
+        flash(f'Error: {str(e)}', 'error')
+    
+    return redirect(url_for('admin_jadwal_piket'))
+
 #Start the entire hundreds line of code program taht i made 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
