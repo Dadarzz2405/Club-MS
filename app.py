@@ -226,6 +226,143 @@ def change_member_role(user_id):
     flash('Member role updated.', 'success')
     return redirect(url_for('member_list'))
 
+
+@app.route('/member-management')
+@login_required
+def member_management():
+    if current_user.role not in ['admin', 'ketua', 'pembina']:
+        flash('Access denied', 'error')
+        return redirect(url_for('member_list'))
+
+    users = User.query.order_by(User.name).all()
+    return render_template('member_management.html', users=users)
+
+
+@app.route('/member-management/batch-add', methods=['POST'])
+@login_required
+def member_management_batch_add():
+    if current_user.role not in ['admin', 'ketua', 'pembina']:
+        flash('Access denied', 'error')
+        return redirect(url_for('member_management'))
+
+    # Accept CSV file upload or bulk textarea input
+    csv_file = request.files.get('csv_file')
+    bulk_text = request.form.get('bulk_text', '').strip()
+    default_password = 'rohisnew'
+    hashed = bcrypt.generate_password_hash(default_password).decode('utf-8')
+    added = 0
+    errors = []
+
+    def add_user_row(name, email, class_name, role):
+        nonlocal added
+        if not name or not email:
+            return
+        email_l = email.strip().lower()
+        existing = User.query.filter_by(email=email_l).first()
+        if existing:
+            errors.append(f'User with email {email_l} already exists')
+            return
+        try:
+            u = User(name=name.strip(), email=email_l, class_name=(class_name or None), role=(role or 'member'), password=hashed)
+            db.session.add(u)
+            db.session.commit()
+            added += 1
+        except IntegrityError:
+            db.session.rollback()
+            errors.append(f'Failed to add {email_l} (integrity)')
+
+    # Handle CSV
+    if csv_file and csv_file.filename:
+        try:
+            stream = TextIOWrapper(csv_file.stream, encoding='utf-8')
+            reader = csv.reader(stream)
+            # detect header: name,email,class,role or similar
+            for row in reader:
+                if not row or all(not c.strip() for c in row):
+                    continue
+                # support flexible columns
+                if len(row) >= 2:
+                    name = row[0]
+                    email = row[1]
+                    class_name = row[2] if len(row) > 2 else None
+                    role = row[3] if len(row) > 3 else 'member'
+                    add_user_row(name, email, class_name, role)
+        except Exception as e:
+            errors.append(f'Failed to parse CSV: {e}')
+
+    # Handle bulk text: each line "name,email,class,role" or "name,email"
+    if bulk_text:
+        for line in StringIO(bulk_text):
+            line = line.strip()
+            if not line:
+                continue
+            parts = [p.strip() for p in line.split(',')]
+            if len(parts) >= 2:
+                name = parts[0]
+                email = parts[1]
+                class_name = parts[2] if len(parts) > 2 else None
+                role = parts[3] if len(parts) > 3 else 'member'
+                add_user_row(name, email, class_name, role)
+
+    if added:
+        flash(f'Added {added} members.', 'success')
+    if errors:
+        for e in errors:
+            flash(e, 'warning')
+
+    return redirect(url_for('member_management'))
+
+
+@app.route('/member-management/batch-delete', methods=['POST'])
+@login_required
+def member_management_batch_delete():
+    if current_user.role not in ['admin', 'ketua', 'pembina']:
+        flash('Access denied', 'error')
+        return redirect(url_for('member_management'))
+
+    # Expect a list of user ids named 'selected_ids' (comma-separated) or multiple form fields
+    selected = request.form.getlist('selected_ids') or []
+    # if single string comma-separated
+    if len(selected) == 1 and ',' in selected[0]:
+        selected = [s.strip() for s in selected[0].split(',') if s.strip()]
+
+    try:
+        ids = [int(i) for i in selected]
+    except ValueError:
+        flash('Invalid user selection', 'error')
+        return redirect(url_for('member_management'))
+
+    if not ids:
+        flash('No members selected for deletion', 'warning')
+        return redirect(url_for('member_management'))
+
+    # Protect self-deletion and last-admin
+    users_to_delete = User.query.filter(User.id.in_(ids)).all()
+    admin_count = User.query.filter_by(role='admin').count()
+    removing_admins = sum(1 for u in users_to_delete if u.role == 'admin')
+
+    # Prevent deleting self
+    if any(u.id == current_user.id for u in users_to_delete):
+        flash('You cannot delete your own account.', 'error')
+        return redirect(url_for('member_management'))
+
+    if admin_count - removing_admins < 1:
+        flash('Cannot delete selected admins because this would remove the last admin.', 'error')
+        return redirect(url_for('member_management'))
+
+    deleted = 0
+    for u in users_to_delete:
+        try:
+            db.session.delete(u)
+            db.session.commit()
+            deleted += 1
+        except Exception:
+            db.session.rollback()
+            flash(f'Failed to delete {u.email}', 'warning')
+
+    flash(f'Deleted {deleted} members.', 'success')
+    return redirect(url_for('member_management'))
+
 @app.route('/create-session', methods=['GET', 'POST'])
 @login_required
 def create_session():
@@ -243,7 +380,7 @@ def create_session():
     return render_template('create_session.html', pics=pics)
 #idk why the hell the import is here but just go on lah ya...
 from datetime import date
-app.route('/api/attendance', methods=['POST'])
+@app.route('/api/attendance', methods=['POST'])
 @login_required
 def api_attendance():
     data = request.get_json()
