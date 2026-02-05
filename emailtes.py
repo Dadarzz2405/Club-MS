@@ -1,14 +1,35 @@
-import os
-import resend
+import requests
+from requests.auth import HTTPBasicAuth
 
-resend.api_key ="re_4gEyKEFT_Fdwkp46rzj1v99TMmPCWJSAR"
+API_KEY = "48d2d2c2c6965381b388b236fe83345b"
+API_SECRET = "d75386e8e783823200ef0ae5ed0e2c94"
 
-params = {
-    "from": "Acme <onboarding@resend.dev>",
-    "to": ["haidaralifawwaz@gmail.com"],
-    "subject": "Hello world",
-    "html": "<strong>It works!</strong>"
+url = "https://api.mailjet.com/v3.1/send"
+
+data = {
+    "Messages": [
+        {
+            "From": {
+                "Email": "haidaralifawwaz@gmail.com",
+                "Name": "Rohis Reminder"
+            },
+            "To": [
+                {
+                    "Email": "haidar.nasirodin@gdajogja.sch.id",
+                    "Name": "Test User"
+                }
+            ],
+            "Subject": "Test Email",
+            "TextPart": "This is a test email from your Rohis reminder system.",
+        }
+    ]
 }
 
-email = resend.Emails.send(params)
-print(email)
+response = requests.post(
+    url,
+    auth=HTTPBasicAuth(API_KEY, API_SECRET),
+    json=data
+)
+
+print(response.status_code)
+print(response.text)

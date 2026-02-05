@@ -126,6 +126,96 @@ def member_list():
     users = User.query.all()
     return render_template('member_list.html', users=users)
 
+
+@app.route('/member/add', methods=['POST'])
+@login_required
+def add_member():
+    if current_user.role not in ['admin', 'ketua', 'pembina']:
+        flash('Access denied', 'error')
+        return redirect(url_for('member_list'))
+
+    name = request.form.get('name', '').strip()
+    email = request.form.get('email', '').strip().lower()
+    class_name = request.form.get('class_name') or None
+    role = request.form.get('role') or 'member'
+
+    if not name or not email:
+        flash('Name and email are required', 'error')
+        return redirect(url_for('member_list'))
+
+    # Default password for new members
+    default_password = 'rohisnew'
+    hashed = bcrypt.generate_password_hash(default_password).decode('utf-8')
+
+    new_user = User(name=name, email=email, class_name=class_name, role=role, password=hashed)
+    try:
+        db.session.add(new_user)
+        db.session.commit()
+        flash(f'Created member {name} with default password.', 'success')
+    except IntegrityError:
+        db.session.rollback()
+        flash('A user with that email already exists.', 'error')
+
+    return redirect(url_for('member_list'))
+
+
+@app.route('/member/delete/<int:user_id>', methods=['POST'])
+@login_required
+def delete_member(user_id):
+    if current_user.role not in ['admin', 'ketua', 'pembina']:
+        flash('Access denied', 'error')
+        return redirect(url_for('member_list'))
+
+    user = User.query.get_or_404(user_id)
+
+    # Prevent deleting self
+    if user.id == current_user.id:
+        flash("You cannot delete your own account.", 'error')
+        return redirect(url_for('member_list'))
+
+    # Prevent removing the last admin
+    if user.role == 'admin':
+        admin_count = User.query.filter_by(role='admin').count()
+        if admin_count <= 1:
+            flash('Cannot delete the last admin user.', 'error')
+            return redirect(url_for('member_list'))
+
+    try:
+        db.session.delete(user)
+        db.session.commit()
+        flash('Member deleted successfully.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash('Failed to delete member.', 'error')
+
+    return redirect(url_for('member_list'))
+
+
+@app.route('/member/change-role/<int:user_id>', methods=['POST'])
+@login_required
+def change_member_role(user_id):
+    if current_user.role not in ['admin', 'ketua', 'pembina']:
+        flash('Access denied', 'error')
+        return redirect(url_for('member_list'))
+
+    user = User.query.get_or_404(user_id)
+    new_role = request.form.get('role')
+    if not new_role:
+        flash('Role is required.', 'error')
+        return redirect(url_for('member_list'))
+
+    # Prevent removing last admin
+    if user.role == 'admin' and new_role != 'admin':
+        admin_count = User.query.filter_by(role='admin').count()
+        if admin_count <= 1:
+            flash('Cannot remove admin role from the last admin.', 'error')
+            return redirect(url_for('member_list'))
+
+    user.role = new_role
+    db.session.commit()
+    flash('Member role updated.', 'success')
+    return redirect(url_for('member_list'))
+
 @app.route('/create-session', methods=['GET', 'POST'])
 @login_required
 def create_session():
