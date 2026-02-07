@@ -178,102 +178,160 @@ class EmailService:
                 'failed_emails': []
             }
     
-    def _generate_email_html(self, day_name: str, date_str: str, additional_info: str) -> str:
-        """Generate HTML email body"""
-        return f"""
+def _generate_email_html(self, day_name: str, date_str: str, additional_info: str) -> str:
+    """Generate HTML email body"""
+    return f"""
         <!DOCTYPE html>
         <html>
         <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Jadwal Piket Reminder</title>
         </head>
-        <body style="margin: 0; padding: 0; font-family: 'Inter', Arial, sans-serif; background-color: #f8fafc;">
-            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                <!-- Header -->
-                <div style="background: linear-gradient(135deg, #059669, #047857); color: white; padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
-                    <h1 style="margin: 0; font-size: 28px; font-weight: 800;">🧹 Jadwal Piket Reminder</h1>
-                    <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.95;">Rohis Attendance System</p>
-                </div>
-                
-                <!-- Content -->
-                <div style="background: white; padding: 40px 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-                    <div style="text-align: center; margin-bottom: 30px;">
-                        <div style="display: inline-block; background: #dcfce7; color: #065f46; padding: 12px 24px; border-radius: 8px; font-weight: 700; font-size: 18px;">
-                            {day_name} • {date_str}
-                        </div>
+
+        <body style="margin:0;padding:0;background-color:#f8fafc;font-family:Arial,Helvetica,sans-serif;">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f8fafc;padding:20px 0;">
+        <tr>
+        <td align="center">
+
+        <table width="600" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border-radius:10px;overflow:hidden;">
+            
+            <!-- Header -->
+            <tr>
+                <td align="center" style="background:#059669;color:white;padding:28px;">
+                    <div style="font-size:26px;font-weight:bold;margin-bottom:6px;">
+                        Reminder
                     </div>
-                    
-                    <p style="font-size: 16px; line-height: 1.6; color: #1e293b; margin-bottom: 20px;">
-                        Assalamu'alaikum,
-                    </p>
-                    
-                    <p style="font-size: 16px; line-height: 1.6; color: #1e293b; margin-bottom: 20px;">
-                        This is a friendly reminder that <strong>you are scheduled for piket duty today ({day_name})</strong>.
-                    </p>
-                    
-                    <div style="background: #f1f5f9; border-left: 4px solid #059669; padding: 20px; margin: 25px 0; border-radius: 8px;">
-                        <h3 style="margin: 0 0 15px 0; color: #059669; font-size: 18px;">📋 Your Responsibilities:</h3>
-                        <ul style="margin: 0; padding-left: 20px; color: #475569; line-height: 1.8;">
-                            <li>Arrive 10 minutes before the scheduled time</li>
-                            <li>Clean the designated area thoroughly</li>
-                            <li>Ensure all tasks are completed before leaving</li>
-                            <li>Report any issues to your PIC or admin</li>
-                        </ul>
+                    <div style="font-size:15px;opacity:0.9;">
+                        Rohis Attendance System
                     </div>
-                    
-                    {f'<div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; margin: 25px 0; border-radius: 8px;"><p style="margin: 0; color: #92400e; font-size: 15px;"><strong>📢 Additional Info:</strong><br>{additional_info}</p></div>' if additional_info else ''}
-                    
-                    <p style="font-size: 16px; line-height: 1.6; color: #1e293b; margin-top: 25px;">
-                        JazakAllah khair for your cooperation! 🙏
-                    </p>
-                    
-                    <p style="font-size: 14px; color: #64748b; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
-                        <em>This is an automated reminder from Rohis Attendance System. If you have any questions, please contact your admin.</em>
-                    </p>
-                </div>
-                
-                <!-- Footer -->
-                <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 13px;">
-                    <p style="margin: 0;">Rohis Management System</p>
-                    <p style="margin: 5px 0 0 0;">GDA Jogja</p>
-                </div>
-            </div>
+                </td>
+            </tr>
+
+            <!-- Date Badge -->
+            <tr>
+                <td align="center" style="padding:30px 20px 10px 20px;">
+                    <div style="display:inline-block;background:#dcfce7;color:#065f46;
+                                padding:10px 18px;border-radius:6px;
+                                font-weight:bold;font-size:16px;">
+                        {day_name} • {date_str}
+                    </div>
+                </td>
+            </tr>
+
+            <!-- Greeting -->
+            <tr>
+                <td style="padding:10px 30px;color:#1e293b;font-size:16px;line-height:1.6;">
+                    Assalamu'alaikum,
+                </td>
+            </tr>
+
+            <!-- Message -->
+            <tr>
+                <td style="padding:0 30px 10px 30px;color:#1e293b;font-size:16px;line-height:1.6;">
+                    This is a reminder that <strong>you are scheduled for piket duty today ({day_name})</strong>.
+                </td>
+            </tr>
+
+            <!-- Responsibilities -->
+            <tr>
+                <td style="padding:20px 30px;">
+                    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;border-left:4px solid #059669;border-radius:6px;">
+                        <tr>
+                            <td style="padding:18px;">
+                                <div style="color:#059669;font-weight:bold;margin-bottom:10px;">
+                                    📋 Your Responsibilities
+                                </div>
+                                <ul style="margin:0;padding-left:18px;color:#475569;line-height:1.7;font-size:15px;">
+                                    <li>Arrive 10 minutes before the scheduled time</li>
+                                    <li>Clean the designated area thoroughly</li>
+                                    <li>Remind members when prayer time is approaching</li>
+                                    <li>Remind members to tidy and return the Qur'an after use</li>
+                                    <li>Remind members to bring their wirid/dua book</li>
+                                    <li>Maintain order inside the mosque (especially during adzan and dzikir)</li>
+                                    <li>Ensure bags are placed near the south-side window</li>
+                                    <li>Remind members to wear the mosque uniform (weekday prayers)</li>
+                                    <li>Report any issues to PIC or admin</li>
+                                </ul>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+
+            {f'''
+            <tr>
+                <td style="padding:0 30px 20px 30px;">
+                    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fef3c7;border-left:4px solid #f59e0b;border-radius:6px;">
+                        <tr>
+                            <td style="padding:16px;color:#92400e;font-size:15px;line-height:1.6;">
+                                <strong>📢 Additional Info</strong><br>
+                                {additional_info}
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            ''' if additional_info else ""}
+
+            <!-- Closing -->
+            <tr>
+                <td style="padding:10px 30px 25px 30px;color:#1e293b;font-size:16px;">
+                    JazakAllah khair for your cooperation 🙏
+                </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+                <td style="border-top:1px solid #e2e8f0;padding:20px 30px;
+                        color:#64748b;font-size:13px;text-align:center;">
+                    <em>This is an automated reminder from Rohis Attendance System.</em>
+                    <div style="margin-top:6px;">Rohis Management System — GDA Jogja</div>
+                </td>
+            </tr>
+
+        </table>
+
+        </td>
+        </tr>
+        </table>
         </body>
         </html>
         """
+
     
     def _generate_email_text(self, day_name: str, date_str: str, additional_info: str) -> str:
         """Generate plain text email body (fallback)"""
         text = f"""
-JADWAL PIKET REMINDER
-Rohis Attendance System
+            JADWAL PIKET REMINDER
+            Rohis Attendance System
 
-{day_name} • {date_str}
+            {day_name} • {date_str}
 
-Assalamu'alaikum,
+            Assalamu'alaikum,
 
-This is a friendly reminder that you are scheduled for piket duty today ({day_name}).
+            This is a friendly reminder that you are scheduled for piket duty today ({day_name}).
 
-YOUR RESPONSIBILITIES:
-- Arrive 10 minutes before the scheduled time
-- Clean the designated area thoroughly
-- Ensure all tasks are completed before leaving
-- Report any issues to your PIC or admin
-"""
+            YOUR RESPONSIBILITIES:
+            - Arrive 10 minutes before the scheduled time
+            - Clean the designated area thoroughly
+            - Ensure all tasks are completed before leaving
+            - Report any issues to your PIC or admin
+            """
         
         if additional_info:
             text += f"\nADDITIONAL INFO:\n{additional_info}\n"
         
         text += """
-JazakAllah khair for your cooperation!
+            JazakAllah khair for your cooperation!
 
----
-This is an automated reminder from Rohis Attendance System.
-If you have any questions, please contact your admin.
+            ---
+            This is an automated reminder from Rohis Attendance System.
+            If you have any questions, please contact your admin.
 
-Rohis Management System
-GDA Jogja
-"""
+            Rohis Management System
+            GDA Jogja
+            """
         return text.strip()
 
 

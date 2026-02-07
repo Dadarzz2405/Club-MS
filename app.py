@@ -290,7 +290,6 @@ def member_management_batch_add():
         except Exception as e:
             errors.append(f'Failed to parse CSV: {e}')
 
-    # Handle bulk text: each line "name,email,class,role" or "name,email"
     if bulk_text:
         for line in StringIO(bulk_text):
             line = line.strip()
@@ -490,7 +489,6 @@ def api_attendance_core():
     if not is_core_user(user):
         return jsonify({"error": "not_core_user", "message": "User is not a core member"}), 400
 
-    # Check if already marked
     existing_record = Attendance.query.filter_by(
         session_id=session_id,
         user_id=user_id,
@@ -1385,11 +1383,6 @@ def cron_piket_reminder():
 @app.route('/admin/jadwal-piket', methods=['GET', 'POST'])
 @login_required
 def admin_jadwal_piket():
-    """
-    Admin page to view and manage weekly jadwal piket.
-    GET: Display current schedule
-    POST: Update schedule for a specific day
-    """
     if current_user.role not in ['admin', 'ketua', 'pembina']:
         abort(403)
     
@@ -1499,7 +1492,6 @@ def clear_jadwal_piket(day_of_week):
     
     return redirect(url_for('admin_jadwal_piket'))
 
-
 # ============================================================================
 # MEMBER ROUTES - View jadwal piket
 # ============================================================================
@@ -1540,7 +1532,6 @@ def view_jadwal_piket():
 # ============================================================================
 # ADMIN ROUTE - View email logs
 # ============================================================================
-
 @app.route('/admin/piket-logs')
 @login_required
 def view_piket_logs():
@@ -1556,7 +1547,6 @@ def view_piket_logs():
 # ============================================================================
 # MANUAL TRIGGER - Test the reminder system
 # ============================================================================
-
 @app.route('/admin/piket-test', methods=['POST'])
 @login_required
 def test_piket_reminder():
