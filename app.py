@@ -236,7 +236,7 @@ def member_management():
 
     users = User.query.order_by(User.name).all()
     all_pics = Pic.query.order_by(Pic.name).all()
-    return render_template('member_management.html', users=users, all_pics=all_pics)
+    return render_template('member_management_with_pic.html', users=users, all_pics=all_pics)
 
 
 @app.route('/member-management/batch-add', methods=['POST'])
