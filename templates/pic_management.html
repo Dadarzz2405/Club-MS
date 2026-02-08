@@ -1,65 +1,73 @@
 {% extends "base.html" %}
 
-{% block title %}PIC Management — Rohis{% endblock %}
+{% block title %}Manage PICs — Rohis{% endblock %}
 
 {% block content %}
-<div class="mt-4">
-    <h2>Assign Attendance Permission</h2>
-
-    <form method="POST">
-        <div class="mb-3">
-            <label for="pic_id" class="form-label">Select PIC</label>
-            <select id="pic_id" name="pic_id" class="form-select" required>
-                {% for p in pics %}
-                    <option value="{{ p.id }}">{{ p.name }}</option>
-                {% endfor %}
-            </select>
+<div class="container mt-4">
+    <div class="card shadow p-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="fw-bold mb-2">
+                    <i class="fas fa-sitemap text-primary me-2"></i>Manage Event PICs
+                </h2>
+                <p class="text-muted mb-0">
+                    Create and manage Person In Charge (PIC) divisions for events and sessions
+                </p>
+            </div>
+            <a href="{{ url_for('dashboard_admin') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back
+            </a>
         </div>
 
-        <div class="mb-3">
-            <label for="user_ids" class="form-label">Select Members (hold Ctrl / Cmd to select multiple)</label>
-            <select id="user_ids" name="user_ids" class="form-select" multiple size="8" required>
-                {% for user in users %}
-                    <option value="{{ user.id }}">{{ user.name }} — {{ user.pic.name if user.pic else 'No PIC' }}</option>
-                {% endfor %}
-            </select>
+        <!-- Create New PIC -->
+        <div class="card bg-light border-0 mb-4">
+            <div class="card-body">
+                <h5 class="fw-bold mb-3">
+                    <i class="fas fa-plus-circle text-success me-2"></i>Create New PIC
+                </h5>
+                <form method="POST" id="createPicForm">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">PIC Name</label>
+                            <input type="text" 
+                                   name="name" 
+                                   class="form-control" 
+                                   placeholder="e.g., Acara, Konsumsi, Dokumentasi"
+                                   required>
+                            <small class="text-muted">Short, descriptive name</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Description (Optional)</label>
+                            <input type="text" 
+                                   name="description" 
+                                   class="form-control" 
+                                   placeholder="e.g., Coordinate event logistics and schedule">
+                            <small class="text-muted">Brief description of responsibilities</small>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-success w-100">
+                                <i class="fas fa-plus me-2"></i>Create
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
         </div>
 
-        <div class="mb-3">
-            <label for="marker_id" class="form-label">Choose one member to be able to mark attendance (optional)</label>
-            <select id="marker_id" name="marker_id" class="form-select">
-                <option value="">-- No marker --</option>
-                {% for user in users %}
-                    <option value="{{ user.id }}">{{ user.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
+        <!-- PIC List -->
+        <h5 class="fw-bold mb-3">
+            <i class="fas fa-list text-primary me-2"></i>Existing PICs
+        </h5>
 
-        <button class="btn btn-primary" type="submit">Save</button>
-    </form>
+        {% extends "base.html" %}
 
-    <hr>
+        {% block title %}Deprecated — PIC Management{% endblock %}
 
-    <h4>Current Permissions</h4>
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Role</th>
-                <th>PIC</th>
-                <th>Permission</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for u in users %}
-            <tr>
-                <td>{{ u.name }}</td>
-                <td>{{ u.role }}</td>
-                <td>{{ u.pic.name if u.pic else '-' }}</td>
-                <td>{{ '✅' if u.can_mark_attendance else '❌' }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-{% endblock %}
+        {% block content %}
+        <div class="container mt-4">
+            <div class="alert alert-info">
+                <h5 class="fw-bold">Old PIC management removed</h5>
+                <p class="mb-0">The PIC assignment UI was replaced. Use the new <a href="{{ url_for('manage_pics') }}">Manage Event PIC</a> page.</p>
+            </div>
+                        </div>
+        {% endblock %}

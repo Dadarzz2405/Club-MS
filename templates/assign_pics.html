@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block title %}Assign PICs to {{ session.name }} — Rohis{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow p-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="fw-bold mb-2">
+                    <i class="fas fa-users-cog text-primary me-2"></i>Assign PICs (Divisions)
+                </h2>
+                <p class="text-muted mb-0">
+                    <strong>{{ session.name }}</strong> — {{ session.date }}
+                </p>
+            </div>
+            <a href="{{ url_for('manage_sessions') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Sessions
+            </a>
+        </div>
+
+        <!-- Session Info Card -->
+        <div class="card bg-light border-0 mb-4">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="fw-bold mb-2">Session Details</h6>
+                        <p class="mb-1"><strong>Type:</strong> 
+                            {% if session.session_type == 'all' %}
+                                <span class="badge bg-primary">All Members</span>
+                            {% elif session.session_type == 'core' %}
+                                <span class="badge bg-danger">Core Only</span>
+                            {% elif session.session_type == 'event' %}
+                                <span class="badge bg-success">Event</span>
+                            {% endif %}
+                        </p>
+                        {% if session.description %}
+                        <p class="mb-0 text-muted small">{{ session.description }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="fw-bold mb-2">Currently Assigned PICs</h6>
+                        {% if session.assigned_pics %}
+                            <div class="d-flex flex-wrap gap-2">
+                                {% for pic in session.assigned_pics %}
+                                <span class="badge bg-success px-3 py-2">
+                                    <i class="fas fa-check-circle me-1"></i>{{ pic.name }}
+                                </span>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-muted small mb-0 fst-italic">No PICs assigned yet</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Assign PICs Form -->
+        <div class="card border-primary mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-plus-circle me-2"></i>Assign PICs to This Session
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Select PICs/Divisions to Assign</label>
+                        <p class="text-muted small mb-3">
+                            Choose multiple divisions that will coordinate different aspects of this session/event
+                            (e.g., Acara for event coordination, Konsumsi for catering, Dokumentasi for documentation)
+                        </p>
+                        
+                        <div class="row g-3">
+                            {% for pic in available_pics %}
+                            <div class="col-md-6 col-lg-4">
+                                <div class="card h-100 pic-card {% if pic in session.assigned_pics %}assigned{% endif %}">
+                                    <div class="card-body">
+                                        <div class="form-check">
+                                            <input 
+                                                class="form-check-input" 
+                                                type="checkbox" 
+                                                name="pic_ids" 
+                                                value="{{ pic.id }}" 
+                                                id="pic_{{ pic.id }}"
+                                                {% if pic in session.assigned_pics %}checked{% endif %}
+                                            >
+                                            <label class="form-check-label w-100" for="pic_{{ pic.id }}">
+                                                <strong class="d-block">{{ pic.name }}</strong>
+                                                {% if pic.description %}
+                                                <small class="text-muted">{{ pic.description[:50] }}...</small>
+                                                {% endif %}
+                                                <div class="mt-2">
+                                                    <span class="badge bg-light text-dark border">
+                                                        <i class="fas fa-users me-1"></i>{{ pic.members|length }} members
+                                                    </span>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        <strong>Tip:</strong> You can assign multiple PICs to coordinate different responsibilities. 
+                        Members from assigned PICs will be able to view and coordinate their specific tasks.
+                    </div>
+
+                    <div class="d-grid gap-2 mt-3">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-save me-2"></i>Save PIC Assignments
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Currently Assigned PICs with Members -->
+        {% if session.assigned_pics %}
+        <h5 class="fw-bold mb-3">
+            <i class="fas fa-list text-primary me-2"></i>Assigned PICs & Their Members
+        </h5>
+
+        <div class="row g-3">
+            {% for pic in session.assigned_pics %}
+            <div class="col-md-6">
+                <div class="card border-success h-100">
+                    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">
+                            <i class="fas fa-sitemap me-2"></i>{{ pic.name }}
+                        </h6>
+                        <form method="POST" action="{{ url_for('remove_pic_from_session', session_id=session.id, pic_id=pic.id) }}" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-outline-light" title="Remove this PIC">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </form>
+                    </div>
+                    <div class="card-body">
+                        {% if pic.description %}
+                        <p class="text-muted small mb-3">
+                            <i class="fas fa-info-circle me-1"></i>{{ pic.description }}
+                        </p>
+                        {% endif %}
+                        
+                        <h6 class="fw-bold mb-2">Members:</h6>
+                        {% if pic.members %}
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for member in pic.members %}
+                            <span class="badge bg-light text-dark border">
+                                {{ member.name }}
+                            </span>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="text-muted small fst-italic mb-0">No members assigned to this PIC yet</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.pic-card {
+    transition: all 0.3s ease;
+    border: 2px solid #e2e8f0;
+}
+
+.pic-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.pic-card.assigned {
+    background-color: #dcfce7;
+    border-color: var(--success);
+}
+
+.form-check-input:checked ~ .form-check-label {
+    font-weight: 600;
+}
+</style>
+{% endblock %}

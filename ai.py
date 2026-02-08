@@ -98,7 +98,7 @@ def call_chatbot_groq(message: str) -> dict:
                 {"role": "user", "content": message.strip()}
             ],
             temperature=0.3,
-            max_tokens=180,
+            max_tokens=320,
         )
 
         content = completion.choices[0].message.content.strip()

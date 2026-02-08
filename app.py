@@ -8,7 +8,7 @@ import os
 from dotenv import load_dotenv
 from models import (
     Pic, db, User, Session, Attendance, Notulensi,
-    Division, JadwalPiket, PiketAssignment, EmailReminderLog
+    Division, JadwalPiket, PiketAssignment, EmailReminderLog, SessionPIC
 )
 from datetime import datetime, date, timezone, timedelta
 from ummalqura.hijri_date import HijriDate
@@ -362,21 +362,316 @@ def member_management_batch_delete():
     flash(f'Deleted {deleted} members.', 'success')
     return redirect(url_for('member_management'))
 
+
+# ============================================================================
+# SESSION MANAGEMENT ROUTES (CORRECTED)
+# ============================================================================
+
+@app.route('/sessions/manage')
+@login_required
+def manage_sessions():
+    """View and manage all sessions"""
+    if current_user.role not in ['admin', 'ketua', 'pembina']:
+        abort(403)
+    
+    sessions = Session.query.order_by(Session.date.desc()).all()
+    return render_template('session_management.html', sessions=sessions)
+
+
 @app.route('/create-session', methods=['GET', 'POST'])
 @login_required
 def create_session():
+    """Create a new session (WITHOUT PIC assignment - that comes later)"""
     if current_user.role not in ['admin', 'ketua', 'pembina']:
         return "Access denied"
+    
     if request.method == 'POST':
-        name = request.form['name']
-        date = request.form['date']
+        name = request.form.get('name', '').strip()
+        date = request.form.get('date', '').strip()
+        session_type = request.form.get('session_type', 'all')
+        description = request.form.get('description', '').strip()
+        
+        if not name or not date:
+            flash('Name and date are required', 'error')
+            return redirect(url_for('create_session'))
+        
+        # Validate session type
+        if session_type not in ['all', 'core', 'event']:
+            session_type = 'all'
+        
+        # Create session (no PIC assignment here)
+        new_session = Session(
+            name=name,
+            date=date,
+            session_type=session_type,
+            description=description if description else None
+        )
+        
+        try:
+            db.session.add(new_session)
+            db.session.commit()
+            
+            # Redirect to PIC assignment if it's an event
+            if session_type == 'event':
+                flash(f'Event "{name}" created! Now assign PICs to coordinate.', 'success')
+                return redirect(url_for('assign_pics_to_session', session_id=new_session.id))
+            else:
+                flash(f'Session "{name}" created successfully!', 'success')
+                return redirect(url_for('manage_sessions'))
+                
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error creating session: {str(e)}', 'error')
+            return redirect(url_for('create_session'))
+    
+    # GET request - show form (no PICs needed)
+    return render_template('create_session.html')
 
-        new_session = Session(name=name, date=date)
-        db.session.add(new_session)
+
+@app.route('/api/session/<int:session_id>/delete', methods=['DELETE'])
+@login_required
+def delete_session(session_id):
+    """Delete a session and all related data (including SessionPIC assignments)"""
+    if current_user.role not in ['admin', 'ketua', 'pembina']:
+        return jsonify({"error": "Access denied"}), 403
+    
+    try:
+        session = Session.query.get_or_404(session_id)
+        session_name = session.name
+        
+        # Delete SessionPIC assignments
+        SessionPIC.query.filter_by(session_id=session_id).delete()
+        
+        # Delete attendance records
+        Attendance.query.filter_by(session_id=session_id).delete()
+        
+        # Delete notulensi
+        Notulensi.query.filter_by(session_id=session_id).delete()
+        
+        # Delete session
+        db.session.delete(session)
         db.session.commit()
-        return redirect(url_for('dashboard_admin'))
+        
+        return jsonify({
+            "success": True,
+            "message": f'Session "{session_name}" deleted successfully'
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error deleting session: {e}")
+        return jsonify({
+            "error": "database_error",
+            "message": str(e)
+        }), 500
+
+
+# ============================================================================
+# PIC-TO-SESSION ASSIGNMENT ROUTES (NEW)
+# ============================================================================
+
+@app.route('/session/<int:session_id>/assign-pics', methods=['GET', 'POST'])
+@login_required
+def assign_pics_to_session(session_id):
+    """Assign PICs (divisions) to a session"""
+    if current_user.role not in ['admin', 'ketua', 'pembina']:
+        abort(403)
+    
+    session = Session.query.get_or_404(session_id)
+    
+    if request.method == 'POST':
+        # Get selected PIC IDs
+        pic_ids = request.form.getlist('pic_ids')
+        
+        try:
+            # Remove all existing PIC assignments for this session
+            SessionPIC.query.filter_by(session_id=session_id).delete()
+            
+            # Add new PIC assignments
+            for pic_id_str in pic_ids:
+                try:
+                    pic_id = int(pic_id_str)
+                    # Verify PIC exists
+                    pic = Pic.query.get(pic_id)
+                    if pic:
+                        session_pic = SessionPIC(
+                            session_id=session_id,
+                            pic_id=pic_id
+                        )
+                        db.session.add(session_pic)
+                except (ValueError, TypeError):
+                    continue
+            
+            db.session.commit()
+            flash(f'PICs updated for "{session.name}"', 'success')
+            return redirect(url_for('assign_pics_to_session', session_id=session_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating PICs: {str(e)}', 'error')
+            return redirect(url_for('assign_pics_to_session', session_id=session_id))
+    
+    # GET request - show form
+    available_pics = Pic.query.all()
+    return render_template(
+        'assign_pics_to_session.html',
+        session=session,
+        available_pics=available_pics
+    )
+
+
+@app.route('/session/<int:session_id>/remove-pic/<int:pic_id>', methods=['POST'])
+@login_required
+def remove_pic_from_session(session_id, pic_id):
+    """Remove a specific PIC from a session"""
+    if current_user.role not in ['admin', 'ketua', 'pembina']:
+        abort(403)
+    
+    try:
+        session_pic = SessionPIC.query.filter_by(
+            session_id=session_id,
+            pic_id=pic_id
+        ).first()
+        
+        if session_pic:
+            pic_name = session_pic.pic.name
+            db.session.delete(session_pic)
+            db.session.commit()
+            flash(f'Removed "{pic_name}" from this session', 'success')
+        else:
+            flash('PIC assignment not found', 'warning')
+            
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error removing PIC: {str(e)}', 'error')
+    
+    return redirect(url_for('assign_pics_to_session', session_id=session_id))
+
+# ============================================================================
+# UPDATED PIC MANAGEMENT (NO SESSION ASSIGNMENT)
+# ============================================================================
+
+@app.route('/pics', methods=['GET', 'POST'])
+@login_required
+def manage_pics():
+    """Manage PICs (divisions) - create, view, delete"""
+    if current_user.role not in ['admin', 'ketua', 'pembina']:
+        abort(403)
+
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        description = request.form.get('description', '').strip()
+        
+        if not name:
+            flash("PIC name cannot be empty", "error")
+            return redirect(url_for('manage_pics'))
+
+        existing = Pic.query.filter_by(name=name).first()
+        if existing:
+            flash(f"PIC '{name}' already exists!", "error")
+        else:
+            new_pic = Pic(
+                name=name,
+                description=description if description else None
+            )
+            db.session.add(new_pic)
+            db.session.commit()
+            flash(f"PIC '{name}' created successfully!", "success")
+
+        return redirect(url_for('manage_pics'))
+
     pics = Pic.query.all()
-    return render_template('create_session.html', pics=pics)
+    return render_template('manage_pic.html', pics=pics)
+
+
+@app.route('/pic/delete/<int:id>', methods=['POST'])
+@login_required
+def delete_pic(id):
+    """Delete a PIC and remove all its assignments"""
+    if current_user.role not in ['admin', 'ketua', 'pembina']:
+        abort(403)
+
+    pic = Pic.query.get_or_404(id)
+    pic_name = pic.name
+
+    # Remove PIC from users
+    for user in pic.members:
+        user.pic_id = None
+        user.can_mark_attendance = False
+
+    # Remove PIC from sessions (SessionPIC table)
+    SessionPIC.query.filter_by(pic_id=id).delete()
+
+    # Delete the PIC
+    db.session.delete(pic)
+    db.session.commit()
+
+    flash(f"PIC '{pic_name}' deleted and all assignments removed", "success")
+    return redirect(url_for('manage_pics'))
+
+
+# ============================================================================
+# UPDATED ATTENDANCE ROUTES FOR SESSION TYPES
+# ============================================================================
+
+@app.route('/attendance-mark')
+@login_required
+def attendance_mark():
+    if current_user.role not in ['admin', 'ketua']:
+        abort(403)
+    
+    # Filter sessions based on type
+    # Core members can see all sessions
+    # Regular members only see 'all' type sessions
+    if current_user.role in ['admin', 'ketua', 'pembina']:
+        sessions = Session.query.order_by(Session.date.desc()).all()
+    else:
+        sessions = Session.query.filter_by(session_type='all').order_by(Session.date.desc()).all()
+    
+    # Get members based on session type (this will be handled in the template)
+    users = User.query.filter(User.role == 'member').all()
+    
+    return render_template('attendance_mark_core.html', sessions=sessions, users=users)
+
+
+@app.route('/attendance/core')
+@login_required
+def attendance_core():
+    """Core member attendance - only show core and event sessions"""
+    if not is_core_user(current_user):
+        abort(403)
+    sessions = Session.query.filter(
+        Session.session_type.in_(['core', 'event'])
+    ).order_by(Session.date.desc()).all()
+    
+    users = User.query.filter(User.role.in_(["admin", "ketua", "pembina"])).all()
+    core_users = users
+
+    return render_template(
+        "attendance_mark_core.html",
+        sessions=sessions,
+        users=users,
+        core_users=core_users
+    )
+
+
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+
+def get_eligible_users_for_session(session):
+    if session.session_type == 'core':
+        # Only core members
+        return User.query.filter(User.role.in_(['admin', 'ketua', 'pembina'])).all()
+    elif session.session_type == 'event':
+        # All members, but can be filtered by PIC
+        if session.pic_id:
+            return User.query.filter_by(pic_id=session.pic_id).all()
+        return User.query.all()
+    else:  # 'all'
+        # All members
+        return User.query.filter(User.role == 'member').all()
+
 #idk why the hell the import is here but just go on lah ya...
 from datetime import date
 @app.route('/api/attendance', methods=['POST'])
@@ -437,24 +732,6 @@ def api_attendance():
         db.session.rollback()
         print(f"Database error: {e}")
         return jsonify({"error": "database_error", "message": str(e)}), 500
-#CORE FUNCTIONNNN!!!
-@app.route("/attendance/core")
-@login_required
-def attendance_core():
-    if not is_core_user(current_user):
-        abort(403)
-
-    sessions = Session.query.order_by(Session.date.desc()).all()
-    users = User.query.filter(User.role.in_(["admin", "ketua"])).all()
-    core_users = users
-
-    return render_template(
-        "attendance_mark_core.html",
-        sessions=sessions,
-        users=users,
-        core_users=core_users
-    )
-
 @app.route("/api/attendance/core", methods=["POST"])
 @login_required
 def api_attendance_core():
@@ -542,32 +819,7 @@ def lock_session(session_id):
     db.session.commit()
 
     return jsonify({"locked": True})
-
-@app.route('/pics', methods=['GET', 'POST'])
-@login_required
-def manage_pics():
-    if current_user.role not in ['admin', 'ketua', 'pembina']:
-        abort(403)
-
-    if request.method == 'POST':
-        name = request.form.get('name', '').strip()
-        if not name:
-            flash("PIC name cannot be empty", "error")
-            return redirect(url_for('manage_pics'))
-
-        existing = Pic.query.filter_by(name=name).first()
-        if existing:
-            flash("PIC already exists!", "error")
-        else:
-            new_pic = Pic(name=name)
-            db.session.add(new_pic)
-            db.session.commit()
-            flash(f"PIC '{name}' created!", "success")
-
-        return redirect(url_for('manage_pics'))
-
-    pics = Pic.query.all()
-    return render_template('manage_pic.html', pics=pics)
+    
 #DOWNLOAD ATTENDANCE RAHHHHH
 @app.route("/export/attendance/<int:session_id>")
 @login_required
@@ -662,23 +914,6 @@ def export_attendance_csv(session_id):
         }
     )
 
-@app.route('/pic/delete/<int:id>', methods=['POST'])
-@login_required
-def delete_pic(id):
-    if current_user.role != 'admin':
-        abort(403)
-
-    pic = Pic.query.get_or_404(id)
-
-    for user in pic.members:
-        user.pic_id = None
-        user.can_mark_attendance = False  
-
-    db.session.delete(pic)
-    db.session.commit()
-
-    flash("PIC deleted and permissions revoked", "success")
-    return redirect(url_for('manage_pics'))
 
 @app.route('/attendance-history')
 @login_required
@@ -717,15 +952,6 @@ def attendance_history_admin_view(user_id):
         'excused': sum(1 for r in records if r.status=='excused')
     }
     return render_template('attendance_history_admin_view.html', user=selected_user, records=records, summary=summary)
-
-@app.route('/attendance-mark')
-@login_required
-def attendance_mark():
-    if current_user.role not in ['admin', 'ketua']:
-        abort(403)
-    sessions = Session.query.all()
-    users = User.query.filter(User.role == 'member').all()
-    return render_template('attendance_mark_core.html', sessions=sessions, users=users)
 
 @app.route('/attendance', methods=['GET', 'POST'])
 @login_required
@@ -1000,56 +1226,8 @@ def chat():
 
     return jsonify({"reply": reply})
 
-@app.route('/pic-management', methods=['GET', 'POST'])
-@login_required
-def pic_management():
+# Old pic management handler removed — use `manage_pics` (route: `/pics`).
 
-    if current_user.role not in ['admin', 'ketua', 'pembina']:
-        abort(403)
-
-    pics = Pic.query.all()
-    users = User.query.filter_by(role='member').all()
-
-    if request.method == 'POST':
-        user_ids = request.form.getlist('user_ids')
-        pic_id = request.form.get('pic_id')
-        marker_id = request.form.get('marker_id')
-
-        if not user_ids or not pic_id:
-            flash("Please select users and a PIC.", "danger")
-            return redirect(url_for('pic_management'))
-
-        try:
-            user_ids = [int(uid) for uid in user_ids]
-            pic_id = int(pic_id)
-        except (ValueError, TypeError):
-            flash("Invalid input values.", "danger")
-            return redirect(url_for('pic_management'))
-
-        try:
-            marker_id = int(marker_id) if marker_id else None
-        except (ValueError, TypeError):
-            marker_id = None
-
-        User.query.filter_by(pic_id=pic_id, can_mark_attendance=True).update({"can_mark_attendance": False})
-
-        for uid in user_ids:
-            user = User.query.get(uid)
-            if user:
-                user.pic_id = pic_id
-                user.can_mark_attendance = True if (marker_id and uid == marker_id) else False
-                db.session.add(user)
-
-        db.session.commit()
-
-        flash(f"Assigned {len(user_ids)} members to the PIC.", "success")
-        return redirect(url_for('pic_management'))
-
-    return render_template(
-        'pic_management.html',
-        pics=pics,
-        users=users
-    )
 
 @app.route("/api/notulensi/<int:session_id>", methods=["POST"])
 @login_required
@@ -1592,4 +1770,4 @@ def test_piket_reminder():
 #Start the entire hundreds line of code program taht i made 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port)  

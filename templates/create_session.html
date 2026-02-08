@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="mt-4 d-flex justify-content-center">
-    <div class="card shadow p-4" style="max-width: 500px; width: 100%;">
+    <div class="card shadow p-4" style="max-width: 600px; width: 100%;">
 
         <div class="mb-4">
             <h3 class="fw-bold mb-1">
@@ -14,6 +14,7 @@
         </div>
 
         <form method="POST">
+            <!-- Session Name -->
             <div class="mb-3">
                 <label class="form-label fw-semibold">
                     <i class="fas fa-heading me-2"></i>Session Name
@@ -22,13 +23,27 @@
                     type="text" 
                     name="name" 
                     class="form-control" 
-                    placeholder="e.g., Weekly Kajian, Ramadan Planning"
+                    placeholder="e.g., Weekly Kajian, Islamic Week 2026"
                     required
                 >
                 <small class="text-muted">Give your session a descriptive name</small>
             </div>
 
-            <div class="mb-4">
+            <!-- Session Type -->
+            <div class="mb-3">
+                <label class="form-label fw-semibold">
+                    <i class="fas fa-tag me-2"></i>Session Type
+                </label>
+                <select name="session_type" id="sessionType" class="form-select" required>
+                    <option value="all">All Members - Regular meeting for everyone</option>
+                    <option value="core">Core Members Only - Admin, Ketua, Pembina</option>
+                    <option value="event">School Event - Special event or program</option>
+                </select>
+                <small class="text-muted">Choose who should attend this session</small>
+            </div>
+
+            <!-- Date -->
+            <div class="mb-3">
                 <label class="form-label fw-semibold">
                     <i class="fas fa-calendar-alt me-2"></i>Date
                 </label>
@@ -41,6 +56,41 @@
                 <small class="text-muted">When will this session take place?</small>
             </div>
 
+            <!-- Description (Optional) -->
+            <div class="mb-4">
+                <label class="form-label fw-semibold">
+                    <i class="fas fa-align-left me-2"></i>Description (Optional)
+                </label>
+                <textarea 
+                    name="description" 
+                    class="form-control" 
+                    rows="3"
+                    placeholder="Add details about this session, agenda, or special notes..."
+                ></textarea>
+                <small class="text-muted">Provide additional context for this session</small>
+            </div>
+
+            <!-- Info Box -->
+            <div class="alert alert-info mb-4">
+                <div class="d-flex">
+                    <i class="fas fa-info-circle fa-lg me-3 mt-1"></i>
+                    <div id="sessionTypeInfo">
+                        <strong>All Members:</strong> Regular Rohis meeting open to all members.
+                    </div>
+                </div>
+            </div>
+
+            <!-- PIC Assignment Notice -->
+            <div class="alert alert-success mb-4" id="eventNotice" style="display: none;">
+                <div class="d-flex">
+                    <i class="fas fa-users-cog fa-lg me-3 mt-1"></i>
+                    <div>
+                        <strong>Next Step:</strong> After creating this event, you can assign PICs (divisions) to coordinate different aspects like Acara, Konsumsi, Dokumentasi, etc.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
             <div class="d-grid gap-2">
                 <button type="submit" class="btn btn-primary btn-lg">
                     <i class="fas fa-plus-circle me-2"></i>Create Session
@@ -54,12 +104,36 @@
     </div>
 </div>
 
+<script>
+// Update info box based on session type
+document.getElementById('sessionType').addEventListener('change', function() {
+    const infoBox = document.getElementById('sessionTypeInfo');
+    const eventNotice = document.getElementById('eventNotice');
+    const type = this.value;
+    
+    const infoTexts = {
+        'all': '<strong>All Members:</strong> Regular Rohis meeting open to all members.',
+        'core': '<strong>Core Members Only:</strong> Attendance limited to Admins, Ketua, and Pembina. Regular members will not see this session.',
+        'event': '<strong>School Event:</strong> Special event or program. You can assign multiple PICs after creation to coordinate different divisions.'
+    };
+    
+    infoBox.innerHTML = infoTexts[type] || infoTexts['all'];
+    
+    // Show event notice for events
+    if (type === 'event') {
+        eventNotice.style.display = 'block';
+    } else {
+        eventNotice.style.display = 'none';
+    }
+});
+</script>
+
 <style>
 .card {
     border-radius: 15px;
 }
 
-.form-control:focus {
+.form-control:focus, .form-select:focus {
     border-color: var(--primary);
     box-shadow: 0 0 0 0.2rem rgba(5, 150, 105, 0.25);
 }
@@ -73,6 +147,14 @@
 .btn-primary:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+}
+
+.alert-info {
+    border-left: 4px solid #0dcaf0;
+}
+
+.alert-success {
+    border-left: 4px solid #198754;
 }
 </style>
 {% endblock %}
