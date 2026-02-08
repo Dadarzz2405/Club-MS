@@ -235,7 +235,8 @@ def member_management():
         return redirect(url_for('member_list'))
 
     users = User.query.order_by(User.name).all()
-    return render_template('member_management.html', users=users)
+    all_pics = Pic.query.order_by(Pic.name).all()
+    return render_template('member_management.html', users=users, all_pics=all_pics)
 
 
 @app.route('/member-management/batch-add', methods=['POST'])
@@ -363,6 +364,51 @@ def member_management_batch_delete():
     return redirect(url_for('member_management'))
 
 
+@app.route('/member/<int:user_id>/assign-pic', methods=['POST', 'GET'])
+@login_required
+def assign_member_to_pic(user_id):
+    if current_user.role not in ['admin', 'ketua', 'pembina']:
+        flash('Access denied', 'error')
+        return redirect(url_for('member_management'))
+    
+    user = User.query.get_or_404(user_id)
+    pic_id = request.form.get('pic_id')
+    
+    try:
+        if pic_id and pic_id.strip():
+            # Assign to PIC
+            pic_id = int(pic_id)
+            pic = Pic.query.get(pic_id)
+            
+            if not pic:
+                flash(f'Invalid PIC selected', 'error')
+                return redirect(url_for('member_management'))
+            
+            user.pic_id = pic_id
+            flash(f'✅ {user.name} assigned to {pic.name}', 'success')
+        else:
+            # Remove PIC assignment
+            if user.pic_id:
+                old_pic = Pic.query.get(user.pic_id)
+                user.pic_id = None
+                flash(f'Removed {user.name} from {old_pic.name if old_pic else "PIC"}', 'info')
+            else:
+                flash(f'{user.name} has no PIC assignment', 'info')
+        
+        # Also update attendance permission if needed
+        # user.can_mark_attendance = (user.pic_id is not None)
+        
+        db.session.commit()
+        
+    except ValueError:
+        flash('Invalid PIC ID format', 'error')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error assigning PIC: {str(e)}', 'error')
+    
+    return redirect(url_for('member_management'))
+
+
 # ============================================================================
 # SESSION MANAGEMENT ROUTES (CORRECTED)
 # ============================================================================
@@ -381,7 +427,6 @@ def manage_sessions():
 @app.route('/create-session', methods=['GET', 'POST'])
 @login_required
 def create_session():
-    """Create a new session (WITHOUT PIC assignment - that comes later)"""
     if current_user.role not in ['admin', 'ketua', 'pembina']:
         return "Access denied"
     
@@ -554,7 +599,6 @@ def remove_pic_from_session(session_id, pic_id):
 @app.route('/pics', methods=['GET', 'POST'])
 @login_required
 def manage_pics():
-    """Manage PICs (divisions) - create, view, delete"""
     if current_user.role not in ['admin', 'ketua', 'pembina']:
         abort(403)
 
@@ -1318,11 +1362,18 @@ def news_feed():
         upcoming_data = []
         for session in upcoming_sessions:
             try:
+                # Fetch PICs assigned to this session via SessionPIC
+                pics = Pic.query.join(SessionPIC, Pic.id == SessionPIC.pic_id).filter(SessionPIC.session_id == session.id).all()
+                if pics:
+                    pic_names = ', '.join([p.name for p in pics])
+                else:
+                    pic_names = 'No PIC assigned'
+
                 upcoming_data.append({
                     'id': session.id,
                     'name': session.name,
                     'date': session.date,
-                    'pic': session.pic.name if session.pic else 'No PIC assigned'
+                    'pic': pic_names
                 })
             except Exception as e:
                 print(f"Error processing session {session.id}: {e}")
