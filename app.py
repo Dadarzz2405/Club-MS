@@ -10,7 +10,7 @@ from models import (
     Pic, db, User, Session, Attendance, Notulensi,
     Division, JadwalPiket, PiketAssignment, EmailReminderLog, SessionPIC
 )
-from datetime import datetime, date, timezone, timedelta
+from datetime import datetime, date, timezone, timedelta, time
 from ummalqura.hijri_date import HijriDate
 import json
 from werkzeug.utils import secure_filename
@@ -28,7 +28,7 @@ from email.mime.multipart import MIMEMultipart
 from typing import List, Dict
 from email_service import get_email_service
 import logging
-
+from flask_apscheduler import APScheduler
 # Load environment variables from .env file in development
 load_dotenv()
 
@@ -47,7 +47,9 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 migrate = Migrate(app, db)
 attendance_bp = Blueprint("attendance", __name__)
-
+scheduler = APScheduler()
+scheduler.init_app(app)
+scheduler.start()
 #manager ofc, t can see it
 @login_manager.user_loader
 def load_user(user_id):
@@ -62,6 +64,61 @@ def health_check():
         'timestamp': datetime.utcnow().isoformat(),
         'message': 'App is awake and running'
     })
+scheduler = APScheduler()
+scheduler.init_app(app)
+scheduler.start()
+
+@scheduler.task('cron', id='send_piket_reminders', hour=6, minute=0, timezone='Asia/Jakarta')
+def scheduled_piket_reminder():
+    """Send piket reminders daily at 06:00 WIB"""
+    with app.app_context():
+        from datetime import datetime
+        wib = timezone(timedelta(hours=7))
+        now_wib = datetime.now(wib)
+        day_of_week = now_wib.weekday()
+        day_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        day_name = day_names[day_of_week]
+        date_str = now_wib.strftime('%d %B %Y')
+        
+        jadwal = JadwalPiket.query.filter_by(day_of_week=day_of_week).first()
+        
+        if not jadwal:
+            logger.info(f'No piket scheduled for {day_name}')
+            return
+        
+        assignments = PiketAssignment.query.filter_by(jadwal_id=jadwal.id).all()
+        
+        if not assignments:
+            logger.info(f'No members assigned for {day_name}')
+            return
+        
+        recipients = [a.user.email for a in assignments if a.user and a.user.email]
+        
+        if not recipients:
+            logger.warning(f'No valid emails for {day_name}')
+            return
+        
+        email_service = get_email_service()
+        result = email_service.send_piket_reminder(
+            recipients=recipients,
+            day_name=day_name,
+            date_str=date_str,
+            additional_info=""
+        )
+        
+        log = EmailReminderLog(
+            day_of_week=day_of_week,
+            day_name=day_name,
+            recipients_count=len(recipients),
+            recipients=json.dumps(recipients),
+            status='success' if result['success'] else 'partial',
+            error_message=result.get('message') if not result['success'] else None
+        )
+        db.session.add(log)
+        db.session.commit()
+        
+        logger.info(f'Piket reminder sent for {day_name} to {len(recipients)} recipients')
+
 #Login, no need comment actually
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -396,8 +453,6 @@ def assign_member_to_pic(user_id):
                 flash(f'{user.name} has no PIC assignment', 'info')
         
         # Also update attendance permission if needed
-        # user.can_mark_attendance = (user.pic_id is not None)
-        
         db.session.commit()
         
     except ValueError:
@@ -559,7 +614,7 @@ def assign_pics_to_session(session_id):
     # GET request - show form
     available_pics = Pic.query.all()
     return render_template(
-        'assign_pics_to_session.html',
+        'assign_pics.html',
         session=session,
         available_pics=available_pics
     )
