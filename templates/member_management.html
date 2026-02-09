@@ -10,7 +10,7 @@
                 <h2 class="fw-bold mb-1">
                     <i class="fas fa-users-cog text-primary me-2"></i>Member Management
                 </h2>
-                <p class="text-muted mb-0">Manage members in batch: add via CSV/bulk text, or delete selected members.</p>
+                <p class="text-muted mb-0">Add, edit, assign PICs, change roles, or delete members</p>
             </div>
             <div>
                 <a href="{{ url_for('member_list') }}" class="btn btn-outline-secondary">
@@ -19,59 +19,200 @@
             </div>
         </div>
 
-        <div class="row">
-            <div class="col-md-6">
-                <h5>Batch Add Members</h5>
-                <p class="small text-muted">Upload a CSV with columns: name,email[,class_name[,role]] or paste lines in the textarea as <code>name,email,class,role</code>.</p>
+        <!-- Quick Stats -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="card border-primary">
+                    <div class="card-body text-center">
+                        <h3 class="text-primary mb-0">{{ users|length }}</h3>
+                        <small class="text-muted">Total Members</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-danger">
+                    <div class="card-body text-center">
+                        <h3 class="text-danger mb-0">{{ users|selectattr('role', 'equalto', 'admin')|list|length }}</h3>
+                        <small class="text-muted">Admins</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-success">
+                    <div class="card-body text-center">
+                        <h3 class="text-success mb-0">{{ users|selectattr('pic_id')|list|length }}</h3>
+                        <small class="text-muted">Assigned to PICs</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-warning">
+                    <div class="card-body text-center">
+                        <h3 class="text-warning mb-0">{{ users|selectattr('can_mark_attendance', 'equalto', True)|list|length }}</h3>
+                        <small class="text-muted">Can Mark Attendance</small>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-                <form method="POST" action="{{ url_for('member_management_batch_add') }}" enctype="multipart/form-data">
-                    <div class="mb-3">
-                        <label class="form-label">CSV file</label>
-                        <input type="file" name="csv_file" class="form-control" accept=".csv">
+        <div class="row">
+            <!-- Batch Add Section -->
+            <div class="col-md-5">
+                <div class="card border-success mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-user-plus me-2"></i>Batch Add Members
+                        </h5>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Or paste bulk lines</label>
-                        <textarea name="bulk_text" class="form-control" rows="6" placeholder="Name,Email,Class,Role (one per line)"></textarea>
+                    <div class="card-body">
+                        <p class="small text-muted">Upload CSV or paste bulk data: <code>name,email,class,role</code></p>
+
+                        <form method="POST" action="{{ url_for('member_management_batch_add') }}" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">CSV File</label>
+                                <input type="file" name="csv_file" class="form-control" accept=".csv">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Or Paste Bulk Lines</label>
+                                <textarea name="bulk_text" class="form-control" rows="6" placeholder="Name,Email,Class,Role (one per line)"></textarea>
+                            </div>
+                            <div class="mb-3 d-flex gap-2">
+                                <button class="btn btn-success" type="submit">
+                                    <i class="fas fa-plus me-2"></i>Add Members
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" onclick="document.querySelector('[name=csv_file]').value=''; document.querySelector('textarea[name=bulk_text]').value=''">
+                                    Clear
+                                </button>
+                            </div>
+                            <div class="alert alert-info mb-0">
+                                <i class="fas fa-key me-2"></i>
+                                <small>New members receive default password: <strong>rohisnew</strong></small>
+                            </div>
+                        </form>
                     </div>
-                    <div class="mb-3 d-flex gap-2">
-                        <button class="btn btn-primary" type="submit">Add Members</button>
-                        <button type="button" class="btn btn-outline-secondary" onclick="document.querySelector('[name=csv_file]').value=''; document.querySelector('textarea[name=bulk_text]').value=''">Clear</button>
-                    </div>
-                    <p class="small text-muted">New members receive default password <strong>rohisnew</strong>.</p>
-                </form>
+                </div>
             </div>
 
-            <div class="col-md-6">
-                <h5>Members</h5>
-                <form id="deleteForm" method="POST" action="{{ url_for('member_management_batch_delete') }}">
-                    <div class="table-responsive">
-                        <table class="table table-sm align-middle">
-                            <thead>
-                                <tr>
-                                    <th style="width: 40px;"><input id="selectAll" type="checkbox" onclick="toggleAll(this)"></th>
-                                    <th>Name</th>
-                                    <th>Email</th>
-                                    <th>Role</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for u in users %}
-                                <tr>
-                                    <td><input type="checkbox" name="selected_ids" value="{{ u.id }}"></td>
-                                    <td>{{ u.name }}</td>
-                                    <td style="word-break: break-word;">{{ u.email }}</td>
-                                    <td>{{ u.role }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+            <!-- Members Management Table -->
+            <div class="col-md-7">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-list me-2"></i>Manage Members
+                        </h5>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-danger" onclick="confirmBatchDelete()">
+                                <i class="fas fa-trash me-1"></i>Delete Selected
+                            </button>
+                            <button type="button" class="btn btn-sm btn-light" onclick="exportSelected()">
+                                <i class="fas fa-download me-1"></i>Export CSV
+                            </button>
+                        </div>
                     </div>
+                    <div class="card-body p-0">
+                        <form id="deleteForm" method="POST" action="{{ url_for('member_management_batch_delete') }}">
+                            <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead class="table-light sticky-top">
+                                        <tr>
+                                            <th style="width: 30px;">
+                                                <input id="selectAll" type="checkbox" onclick="toggleAll(this)">
+                                            </th>
+                                            <th>Member Info</th>
+                                            <th>Role</th>
+                                            <th>PIC</th>
+                                            <th class="text-center">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for u in users %}
+                                        <tr>
+                                            <td>
+                                                <input type="checkbox" name="selected_ids" value="{{ u.id }}">
+                                            </td>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <img src="{{ url_for('serve_profile_picture', user_id=u.id) }}" 
+                                                         alt="{{ u.name }}" 
+                                                         class="rounded-circle me-2" 
+                                                         width="40" 
+                                                         height="40"
+                                                         style="object-fit: cover; border: 2px solid var(--primary-light);">
+                                                    <div>
+                                                        <div class="fw-bold">{{ u.name }}</div>
+                                                        <small class="text-muted">{{ u.email }}</small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <!-- Change Role Form -->
+                                                <form method="POST" action="{{ url_for('change_member_role', user_id=u.id) }}" class="d-inline">
+                                                    <div class="input-group input-group-sm" style="min-width: 150px;">
+                                                        <select name="role" class="form-select form-select-sm">
+                                                            <option value="member" {% if u.role == 'member' %}selected{% endif %}>Member</option>
+                                                            <option value="pembina" {% if u.role == 'pembina' %}selected{% endif %}>Pembina</option>
+                                                            <option value="ketua" {% if u.role == 'ketua' %}selected{% endif %}>Ketua</option>
+                                                            <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>Admin</option>
+                                                        </select>
+                                                        <button class="btn btn-outline-primary btn-sm" type="submit" title="Save role change">
+                                                            <i class="fas fa-check"></i>
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </td>
+                                            <td>
+                                                <!-- Assign PIC Form -->
+                                                <form method="POST" 
+                                                      action="{{ url_for('assign_member_to_pic', user_id=u.id) }}" 
+                                                      class="d-inline pic-assign-form">
+                                                    <select name="pic_id" 
+                                                            class="form-select form-select-sm" 
+                                                            style="min-width: 120px;"
+                                                            onchange="this.form.submit()">
+                                                        <option value="">No PIC</option>
+                                                        {% for pic in all_pics %}
+                                                        <option value="{{ pic.id }}" 
+                                                                {% if u.pic_id == pic.id %}selected{% endif %}>
+                                                            {{ pic.name }}
+                                                        </option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </form>
+                                            </td>
+                                            <td class="text-center">
+                                                <!-- Individual Delete Button -->
+                                                <form method="POST" 
+                                                      action="{{ url_for('delete_member', user_id=u.id) }}" 
+                                                      class="d-inline delete-single-form"
+                                                      data-member-name="{{ u.name }}">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete {{ u.name }}">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </form>
+                    </div>
+                </div>
 
-                    <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-danger" onclick="confirmBatchDelete()">Delete Selected</button>
-                        <button type="button" class="btn btn-outline-secondary" onclick="exportSelected()">Export Selected CSV</button>
+                <!-- Info Card -->
+                <div class="card bg-light border-0 mt-3">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-2">
+                            <i class="fas fa-info-circle text-primary me-2"></i>Management Guide
+                        </h6>
+                        <ul class="small mb-0 text-muted">
+                            <li><strong>Change Role:</strong> Select new role from dropdown and click checkmark to save</li>
+                            <li><strong>Assign PIC:</strong> Select PIC from dropdown (auto-saves on change)</li>
+                            <li><strong>Delete:</strong> Use trash icon for individual delete or select multiple and click "Delete Selected"</li>
+                            <li><strong>Export:</strong> Select members and click "Export CSV" to download their data</li>
+                        </ul>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
 
@@ -87,35 +228,109 @@ function toggleAll(master) {
 function confirmBatchDelete() {
     const checked = Array.from(document.querySelectorAll('input[name="selected_ids"]:checked'));
     if (checked.length === 0) {
-        alert('No members selected.');
+        alert('⚠️ No members selected.\n\nPlease select members using the checkboxes first.');
         return;
     }
-    if (!confirm(`Delete ${checked.length} selected members? This cannot be undone.`)) return;
-    // Submit the form
+    
+    const memberNames = checked.map(ch => {
+        const row = ch.closest('tr');
+        return row.querySelector('.fw-bold').textContent.trim();
+    });
+    
+    const confirmMsg = `⚠️ DELETE ${checked.length} MEMBER(S)?\n\n` +
+                      `This will permanently delete:\n` +
+                      memberNames.slice(0, 5).map(name => `• ${name}`).join('\n') +
+                      (memberNames.length > 5 ? `\n• ... and ${memberNames.length - 5} more` : '') +
+                      `\n\n❌ This action CANNOT be undone!\n\nContinue?`;
+    
+    if (!confirm(confirmMsg)) return;
+    
     document.getElementById('deleteForm').submit();
 }
 
 function exportSelected() {
     const checked = Array.from(document.querySelectorAll('input[name="selected_ids"]:checked'));
     if (checked.length === 0) {
-        alert('No members selected.');
+        alert('⚠️ No members selected.\n\nPlease select members using the checkboxes first.');
         return;
     }
     const rows = [['name','email','class_name','role']];
     checked.forEach(ch => {
         const tr = ch.closest('tr');
-        const name = tr.children[1].innerText.trim();
-        const email = tr.children[2].innerText.trim();
-        const role = tr.children[3].innerText.trim();
+        const name = tr.querySelector('.fw-bold').innerText.trim();
+        const email = tr.querySelector('small').innerText.trim();
+        const role = tr.querySelector('select[name="role"]').value;
         rows.push([name, email, '', role]);
     });
     const csv = rows.map(r => r.map(c => '"'+c.replace(/"/g,'""')+'"').join(',')).join('\n');
     const blob = new Blob([csv], {type: 'text/csv'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = 'members_export.csv';
-    document.body.appendChild(a); a.click(); a.remove();
+    a.href = url; 
+    a.download = `members_export_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a); 
+    a.click(); 
+    a.remove();
+    URL.revokeObjectURL(url);
 }
+
+// Confirm individual deletes
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.delete-single-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const memberName = this.dataset.memberName;
+            
+            const confirmed = confirm(
+                `⚠️ Delete member "${memberName}"?\n\n` +
+                `This will permanently remove this member and all their data.\n\n` +
+                `❌ This action CANNOT be undone!\n\nContinue?`
+            );
+            
+            if (confirmed) {
+                this.submit();
+            }
+        });
+    });
+    
+    // Add loading indicator to PIC assignment forms
+    document.querySelectorAll('.pic-assign-form').forEach(form => {
+        form.addEventListener('submit', function() {
+            const select = this.querySelector('select');
+            select.disabled = true;
+            select.style.opacity = '0.6';
+        });
+    });
+});
 </script>
+
+<style>
+.table tbody tr {
+    transition: all 0.2s ease;
+}
+
+.table tbody tr:hover {
+    background-color: var(--primary-light);
+}
+
+.form-select-sm:hover:not(:disabled) {
+    border-color: var(--primary);
+}
+
+.sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: white;
+}
+
+.input-group-sm .btn {
+    transition: all 0.2s ease;
+}
+
+.input-group-sm .btn:hover {
+    transform: scale(1.05);
+}
+</style>
 
 {% endblock %}
