@@ -1,445 +1,480 @@
-# 🕌 Rohis Management System
+# 🕌 Rohis Management System — Features Guide
 
-![Python](https://img.shields.io/badge/Python-3.11-blue.svg)
-![Flask](https://img.shields.io/badge/Flask-3.1.2-green.svg)
-![Status](https://img.shields.io/badge/Status-Active-success.svg)
-
-A comprehensive web-based application designed to digitize and streamline the management of **Rohis (Rohani Islam)** activities in schools. This system helps administrators efficiently manage member data, track attendance, create meeting minutes, and organize Islamic events.
-
-## 📋 Table of Contents
-
-- [Features](#-features)
-- [Demo](#-demo)
-- [Technology Stack](#-technology-stack)
-- [Installation](#-installation)
-- [Configuration](#-configuration)
-- [Usage](#-usage)
-- [Project Structure](#-project-structure)
-- [API Endpoints](#-api-endpoints)
-- [Database Schema](#-database-schema)
-- [Contributing](#-contributing)
-- [Roadmap](#-roadmap)
-- [Acknowledgments](#-acknowledgments)
-
-## ✨ Features
-
-### Core Features
-- 🔐 **Secure Authentication System** - Role-based access control (Admin, Ketua, Pembina, Member)
-- 👥 **Member Management** - Comprehensive member database with profiles and role assignments
-- 📊 **Attendance Tracking** - Digital attendance recording with multiple status options (Present, Absent, Excused, Late)
-- 📝 **Meeting Minutes (Notulensi)** - Rich text editor for creating and managing meeting documentation
-- 📅 **Islamic Calendar Integration** - Automatic display of Islamic holidays with Hijri date conversion
-- 🤖 **AI-Powered Chatbot** - Islamic educational assistant using Groq API
-- 📈 **Analytics Dashboard** - Real-time statistics and attendance reports
-
-### Advanced Features
-- **PIC (Person In Charge) Management** - Assign and manage event coordinators
-- **Core Team Attendance** - Separate attendance tracking for leadership team
-- **Session Management** - Create and lock attendance sessions
-- **Document Export** - Export attendance reports to DOCX format
-- **News Feed** - Display upcoming events and recent meeting summaries
-- **Profile Customization** - Upload profile pictures and manage personal information
-- **Password Management** - Secure password change with forced reset on first login
-
-## 🎯 Demo
-
-> **Note:** This is a school project and personal portfolio demonstration. The system is optimized for small-scale Rohis organizations.
-
-### Default Credentials
-```
-Email: [Contact administrator]
-Password: rohis2026 (Must be changed on first login)
-```
-
-## 🛠️ Technology Stack
-
-### Backend
-- **Framework:** Flask 3.1.2
-- **Database:** 
-  - Development: SQLite
-  - Production: PostgreSQL (via psycopg2-binary)
-- **ORM:** SQLAlchemy 2.0.45
-- **Authentication:** Flask-Login 0.6.3
-- **Password Hashing:** Flask-Bcrypt 1.0.1
-- **Database Migrations:** Flask-Migrate 4.0.4 / Alembic 1.11.1
-
-### Frontend
-- **Framework:** Bootstrap 5.3.0
-- **Icons:** Font Awesome 6.4.0, Bootstrap Icons
-- **Fonts:** Google Fonts (Inter)
-- **Calendar:** FullCalendar 6.1.11
-- **Rich Text Editor:** Quill.js 1.3.6
-- **Animations:** Animate.css, WOW.js
-
-### AI & APIs
-- **AI Provider:** Groq (llama-3.1-8b-instant)
-- **Features:** 
-  - Islamic educational chatbot
-  - Meeting minutes summarization
-  - Attendance report formatting
-
-### Additional Libraries
-- **Hijri Calendar:** ummalqura
-- **Document Processing:** python-docx
-- **HTTP Requests:** requests 2.32.5
-- **Environment Management:** python-dotenv 1.2.1
-- **WSGI Server:** gunicorn 21.2.0
-
-## 🚀 Installation
-
-### Prerequisites
-- Python 3.11 or higher
-- pip (Python package manager)
-- Git
-- Virtual environment tool (venv)
-
-### Step-by-Step Installation
-
-1. **Clone the repository**
-```bash
-git clone https://github.com/yourusername/rohis-management-system.git
-cd rohis-management-system
-```
-
-2. **Create and activate virtual environment**
-```bash
-# On macOS/Linux
-python -m venv venv
-source venv/bin/activate
-
-# On Windows
-python -m venv venv
-venv\Scripts\activate
-```
-
-3. **Install dependencies**
-```bash
-pip install -r requirements.txt
-```
-
-4. **Set up environment variables**
-
-Create a `.env` file in the project root:
-```bash
-# Required
-SECRET_KEY=your-secret-key-here
-DATABASE_URL=sqlite:///instance/database.db
-GROQ_API_KEY=your-groq-api-key
-
-# Optional (for production)
-PORT=5000
-FLASK_ENV=development
-```
-
-To generate a secure secret key:
-```python
-import secrets
-print(secrets.token_hex(32))
-```
-
-5. **Initialize the database**
-```bash
-flask db upgrade
-```
-
-6. **Seed the database with initial data**
-```bash
-python seeder.py seed
-```
-
-7. **Run the application**
-```bash
-# Development
-python app.py
-
-# Production with Gunicorn
-gunicorn --bind=0.0.0.0:5000 app:app
-```
-
-8. **Access the application**
-```
-http://localhost:5000
-```
-
-## ⚙️ Configuration
-
-### Environment Variables
-
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `SECRET_KEY` | Flask secret key for sessions | Yes | - |
-| `DATABASE_URL` | Database connection string | Yes | `sqlite:///instance/database.db` |
-| `GROQ_API_KEY` | Groq API key for AI features | Yes | - |
-| `PORT` | Application port | No | `5000` |
-| `FLASK_ENV` | Environment (development/production) | No | `development` |
-
-### Database Configuration
-
-**Development (SQLite):**
-```python
-DATABASE_URL=sqlite:///instance/database.db
-```
-
-**Production (PostgreSQL):**
-```python
-DATABASE_URL=postgresql://user:password@host:port/database
-```
-
-### Groq API Setup
-
-1. Sign up at [Groq Console](https://console.groq.com/)
-2. Create an API key
-3. Add to `.env` file:
-```
-GROQ_API_KEY=gsk_your_api_key_here
-```
-
-## 📖 Usage
-
-### For Administrators
-
-1. **Creating Sessions**
-   - Navigate to Dashboard → Create Session
-   - Enter session name and date
-   - Optionally assign a PIC
-
-2. **Managing Attendance**
-   - Go to Mark Attendance
-   - Select a session
-   - Mark attendance for each member (Present/Absent/Excused/Late)
-   - One-click save per member
-
-3. **Creating Meeting Minutes**
-   - Access Meeting Minutes → Create New
-   - Select session
-   - Use rich text editor to document meeting
-   - Auto-save feature prevents data loss
-
-4. **Managing PICs**
-   - Navigate to Member Management
-   - Assign members to PICs
-   - Grant attendance marking permissions
-
-### For Members
-
-1. **View Attendance History**
-   - Dashboard → My Attendance History
-   - See all session attendance records
-   - View summary statistics
-
-2. **Read Meeting Minutes**
-   - Dashboard → View Meeting Minutes
-   - Browse all session notes
-   - AI-generated summaries for quick reading
-
-3. **View Calendar**
-   - Check upcoming Rohis sessions
-   - See Islamic holidays with Hijri dates
-
-### Using the AI Chatbot
-
-Click the chat bubble in the bottom-right corner to:
-- Ask about Islamic topics
-- Get help navigating the system
-- Request information about features
-
-Example queries:
-- "Take me to attendance"
-- "What is the importance of salah?"
-- "Show me the dashboard"
-
-## 📁 Project Structure
-
-```
-rohis-management-system/
-├── app.py                      # Main application file
-├── models.py                   # Database models
-├── utils.py                    # Utility functions
-├── ai.py                       # AI chatbot logic
-├── formatter.py                # Attendance formatting
-├── summarizer.py               # Meeting minutes summarization
-├── seeder.py                   # Database seeder
-├── requirements.txt            # Python dependencies
-├── .gitignore                  # Git ignore rules
-├── Procfile                    # Heroku deployment config
-├── .replit                     # Replit configuration
-│
-├── migrations/                 # Database migrations
-│   ├── versions/              # Migration files
-│   └── env.py                 # Migration environment
-│
-├── instance/                   # Instance-specific files
-│   └── database.db            # SQLite database (dev)
-│
-├── static/                     # Static assets
-│   ├── style.css              # Main stylesheet
-│   ├── chat.css               # Chatbot styles
-│   ├── login.css              # Login page styles
-│   ├── attendance.js          # Attendance logic
-│   ├── chat.js                # Chatbot logic
-│   ├── images/                # Image assets
-│   └── uploads/               # User uploads
-│       └── profiles/          # Profile pictures
-│
-└── templates/                  # HTML templates
-    ├── base.html              # Base template
-    ├── login.html             # Login page
-    ├── dashboard_admin.html   # Admin dashboard
-    ├── dashboard_member.html  # Member dashboard
-    ├── attendance.html        # Attendance marking
-    ├── notulensi.html         # Meeting minutes editor
-    ├── calendar.html          # Calendar view
-    ├── member_list.html       # Member directory
-    └── ...                    # Other templates
-```
-
-## 🔌 API Endpoints
-
-### Attendance
-```
-POST   /api/attendance              # Mark regular attendance
-POST   /api/attendance/core         # Mark core team attendance
-POST   /api/session/<id>/lock       # Lock a session
-```
-
-### Meeting Minutes
-```
-POST   /api/notulensi/<session_id> # Save/update notulensi
-DELETE /api/notulensi/<id>          # Delete notulensi
-```
-
-### Calendar & News
-```
-GET    /api/dashboard_calendar      # Get calendar events
-GET    /api/news-feed               # Get news feed data
-```
-
-### Chatbot
-```
-POST   /chat                        # Send message to AI chatbot
-```
-
-### Export
-```
-GET    /export/attendance/<id>      # Export attendance as DOCX
-```
-
-## 🗄️ Database Schema
-
-### Users
-- `id`: Primary key
-- `email`: Unique school email
-- `password`: Bcrypt hashed password
-- `name`: Full name
-- `role`: admin | ketua | pembina | member
-- `class_name`: Student class
-- `profile_picture`: Profile image filename
-- `pic_id`: Foreign key to PIC
-- `can_mark_attendance`: Permission flag
-- `must_change_password`: Force password reset
-
-### Sessions
-- `id`: Primary key
-- `name`: Session name
-- `date`: Session date
-- `pic_id`: Assigned PIC
-- `is_locked`: Lock status
-
-### Attendance
-- `id`: Primary key
-- `session_id`: Foreign key to Session
-- `user_id`: Foreign key to User
-- `status`: present | absent | excused | late
-- `attendance_type`: regular | core
-- `timestamp`: Record timestamp
-
-### Notulensi
-- `id`: Primary key
-- `session_id`: Foreign key to Session
-- `content`: HTML content
-- `created_at`: Creation timestamp
-- `updated_at`: Last update timestamp
-
-### PIC (Person In Charge)
-- `id`: Primary key
-- `name`: PIC name
-
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-### Code Style
-- Follow PEP 8 for Python code
-- Use meaningful variable and function names
-- Add comments for complex logic
-- Write docstrings for functions
-
-## 🗺️ Roadmap
-
-### Phase 1 (Completed)
-- ✅ Core authentication system
-- ✅ Attendance tracking
-- ✅ Meeting minutes
-- ✅ AI chatbot integration
-- ✅ Calendar with Islamic dates
-
-### Phase 2 (In Progress)
-- 🔄 Excel/PDF export for analytics
-- 🔄 Advanced statistics and charts
-- 🔄 Email notifications
-- 🔄 Mobile responsive improvements
-
-### Phase 3 (Planned)
-- 📋 Multi-language support (Indonesian/English)
-- 📋 Role-based permission system expansion
-- 📋 Integration with school systems
-- 📋 Mobile application (React Native)
-- 📋 Advanced reporting dashboard
-- 📋 Automated attendance reminders
-
-## ⚠️ Important Notes
-
-### Limitations
-- **Scale:** Designed for small-scale organizations (up to 100 members)
-- **Performance:** Not optimized for large-scale deployments
-- **Security:** Basic authentication - consider additional security measures for production
-- **Browser Support:** Modern browsers only (Chrome, Firefox, Safari, Edge)
-
-### Known Issues
-- AI chatbot requires stable internet connection
-- Profile picture upload limited to 5MB
-- Calendar may not display correctly in older browsers
-
-## 🙏 Acknowledgments
-
-- **Groq** - For providing the AI API
-- **Bootstrap Team** - For the amazing CSS framework
-- **FullCalendar** - For the calendar component
-- **Ummalqura** - For Hijri calendar conversion
-- **My School** - For the opportunity to develop this project
-
-## 👨‍💻 Developer
-
-**Haidar Ali Fawwaz Nasirodin (Dadarzz)**
-
-This project was developed as a school project and personal portfolio, demonstrating practical application of web development concepts including Flask, SQLAlchemy, REST APIs, and front-ends.
-## 📧 Contact & Support
-
-For questions, issues, or suggestions:
-- Create an issue on GitHub
-- Email: [Your Email]
-- School: GDA Jogja
+A comprehensive web-based application for digitizing and streamlining Islamic student organization (Rohis) management in schools.
 
 ---
 
-<div align="center">
+## 📋 Core Features
 
-**⭐ If you find this project useful, please consider giving it a star!**
+### 🔐 Authentication & Access Control
 
-Made with ❤️ for the Rohis community
+- **Role-Based Login System**
+  - Email and password authentication with bcrypt hashing
+  - Four role levels: Admin, Ketua, Pembina, Member
+  - Forced password change on first login
+  - Secure session management via Flask-Login
+
+- **User Profile Management**
+  - Upload and manage profile pictures (stored as BLOB in database)
+  - Update personal information
+  - Change password securely with current password verification
+  - View member directory with profiles and contact info
+
+### 👥 Member Management
+
+- **Member Directory**
+  - Browse all members with profile pictures, names, classes, and roles
+  - Filter members by role (Admin, Ketua, Pembina, Member)
+  - Search and sort functionality
+  - Display attendance marking permissions and PIC assignments
+
+- **Bulk Member Operations**
+  - Add multiple members via CSV file upload
+  - Batch add members via copy-paste (comma-separated format)
+  - Support for: name, email, class, role
+  - Individual member deletion with confirmation
+  - Batch delete multiple members at once
+  - Export member list to CSV
+
+- **Member Assignment**
+  - Assign members to PICs (Persons In Charge/Divisions)
+  - Change member roles (Member → Pembina → Ketua → Admin)
+  - Protect against deleting last admin
+  - Grant/revoke attendance marking permissions
+  - Assign members to core team for leadership tracking
+
+### 📅 Session Management
+
+- **Create & Schedule Sessions**
+  - Schedule Rohis meetings and events with date and time
+  - Three session types: All Members, Core Only, Events
+  - Add optional descriptions for each session
+  - Track session creation and modification dates
+
+- **Session Control**
+  - View all sessions with status indicators
+  - Lock sessions to prevent further attendance marking
+  - Assign multiple PICs to events for coordinated responsibility
+  - Delete sessions (removes all attendance records and notes)
+  - Filter sessions by type (All Members, Core, Events)
+
+- **Session Statistics**
+  - View attendance count per session
+  - Track which sessions are locked vs open
+  - See PIC assignments and coordinator information
+  - Export attendance reports per session
+
+### ✅ Attendance Tracking
+
+- **Regular Member Attendance**
+  - Mark attendance for all members in sessions
+  - Four status options: Present, Absent, Excused, Late
+  - One-click status change with immediate save
+  - Rows lock after marking to prevent accidental changes
+  - Session lock prevents further modifications
+
+- **Core Team Attendance**
+  - Separate tracking for Admin, Ketua, Pembina
+  - Leadership attendance visibility
+  - Same status options as regular members
+  - Accessible only to core team members
+
+- **Attendance Reports**
+  - Download attendance as DOCX file with formatted table
+  - Summary statistics (Present, Absent, Excused, Late counts)
+  - Individual records with names, roles, timestamps
+  - Timestamps recorded in WIB (Jakarta) timezone
+  - Export includes session name and date
+
+- **Attendance History**
+  - Members can view their own attendance records
+  - See status per session with dates
+  - View summary statistics (total present, absent, excused)
+  - Admins can view any member's attendance history
+  - Filter and sort by session
+
+### 📝 Meeting Minutes (Notulensi)
+
+- **Rich Text Editor**
+  - Full WYSIWYG editor (Quill.js)
+  - Formatting: bold, italic, underline, strikethrough
+  - Headers (h1-h3), lists (ordered & bullet)
+  - Text alignment, colors, backgrounds
+  - Link insertion support
+  - HTML content saved to database
+
+- **Auto-Save Functionality**
+  - Real-time unsaved changes indicator
+  - Warn user before leaving with unsaved changes
+  - Save on button click with visual feedback
+  - Display last update timestamp
+  - Keyboard shortcut: Ctrl+S or Cmd+S to save
+
+- **Notulensi Management**
+  - Create new minutes per session
+  - Edit existing notes with full history
+  - Delete notes (admins only)
+  - View full note content in dedicated view
+  - AI-generated summaries for quick reading (when API available)
+
+- **Meeting Summary**
+  - Auto-generate brief 2-3 sentence summaries
+  - Fallback to content preview if summary unavailable
+  - Display in news feed for easy discovery
+  - Show last update date on list view
+
+### 📊 Analytics & Reporting
+
+- **Attendance Analytics**
+  - View member attendance history with statistics
+  - Admin dashboard shows all member attendance data
+  - Filter by member, session, or date range
+  - Visual statistics cards (Total, Present, Absent, Excused)
+  - Export attendance data to DOCX format
+
+- **News Feed & Updates**
+  - Upcoming sessions (next 3 upcoming events)
+  - Recent meeting summaries (latest 3 notulensi)
+  - PIC assignments for upcoming events
+  - Quick links to read full meeting notes
+  - Real-time data loading
+
+- **Dashboard Cards**
+  - Quick access shortcuts to all features
+  - Role-specific dashboards for Admin vs Members
+  - Visual indicators for special access (Can Mark Attendance)
+  - Session type icons and status badges
+
+### 🕌 Islamic Calendar Integration
+
+- **Hijri Date Conversion**
+  - Automatic conversion of Gregorian to Hijri dates
+  - Display Hijri dates alongside session names
+  - 40+ Islamic holidays included (Muharram through Dhu al-Hijjah)
+
+- **Full Calendar Display**
+  - Month, Week, Day, and List views
+  - Interactive event browser
+  - Color-coded events (Rohis sessions vs Islamic holidays)
+  - Today's date highlighted and emphasized
+  - Navigate between dates easily
+  - Responsive design for mobile viewing
+
+- **Holiday Reference**
+  - Mawlid al-Nabi, Isra & Mi'raj, Ramadan dates
+  - Eid celebrations (Fitr & Adha)
+  - Day of Ashura, Laylat al-Qadr
+  - Nuzul al-Qur'an and other significant dates
+
+### 🤖 AI-Powered Features
+
+- **Islamic Education Chatbot**
+  - Ask questions about Islamic teachings and practices
+  - Quick navigation commands (e.g., "Take me to attendance")
+  - Formatted responses in natural language
+  - Floating chat widget in bottom-right corner
+
+- **Chatbot Capabilities**
+  - Answer Islamic education questions
+  - Guide navigation to features
+  - Explain system functionality
+  - Fallback to helpful messages when uncertain
+  - No API key = graceful degradation
+
+- **Meeting Minutes Summarization**
+  - Auto-generate concise summaries of meeting notes
+  - Intelligently extract key decisions and topics
+  - Display in news feed for quick scanning
+  - HTML-aware text extraction
+
+### 🎭 Event & Division Management (PIC System)
+
+- **Create Divisions/PICs**
+  - Define roles like "Acara", "Konsumsi", "Dokumentasi"
+  - Add descriptions of responsibilities
+  - Track creation timestamps
+  - Delete PICs (removes all user assignments)
+
+- **Assign PICs to Events**
+  - Attach multiple divisions to a single event
+  - Enable coordination across responsibilities
+  - Members see their assigned PIC's event details
+  - PICs can mark attendance for their members
+
+- **PIC-Based Attendance**
+  - PIC coordinators mark attendance for their members
+  - Automatic permission system
+  - Members track PIC assignment status
+  - View which members belong to each PIC
+
+### 📅 Weekly Piket (Duty) Schedule
+
+- **Schedule Management**
+  - Assign members to specific days of the week
+  - View weekly duty roster
+  - Track assignment creation/update dates
+  - Clear assignments by day
+  - Multiple members per day supported
+
+- **Member View**
+  - Members see their assigned piket days
+  - Visual calendar layout (Monday-Sunday)
+  - See other assigned members per day
+  - Know when reminders will be sent (06:00 WIB)
+  - Quick overview of upcoming duties
+
+- **Admin Control**
+  - Bulk assign members to days
+  - Edit schedules anytime
+  - Clear all assignments for a day
+  - View assignment history logs
+  - Test email reminders before going live
+
+### 💌 Automated Email Reminders
+
+- **Daily Piket Reminders**
+  - Automatic email at 06:00 WIB on assigned days
+  - HTML-formatted professional email
+  - Includes member responsibilities checklist
+  - Optional additional information field
+  - Graceful error handling
+
+- **Reminder System**
+  - Supports Mailjet and Resend email providers
+  - Configurable via environment variables
+  - Batch sending to multiple recipients
+  - Failed email retry logic
+  - Comprehensive error logging
+
+- **Email Log History**
+  - Track all sent reminders
+  - View success/failure status
+  - See recipient list per reminder
+  - Display error messages when applicable
+  - Statistics on success rate
+
+- **Test Functionality**
+  - Admins can test reminders manually
+  - Send test emails before schedule goes live
+  - Verify email addresses and content
+  - Debug email delivery issues
+
+### 🎨 User Interface & Experience
+
+- **Responsive Design**
+  - Works on desktop, tablet, and mobile
+  - Bootstrap 5.3 framework
+  - Mobile-first approach
+  - Touch-friendly buttons and inputs
+
+- **Modern Styling**
+  - Gradient backgrounds and buttons
+  - Smooth transitions and animations
+  - Custom color scheme with CSS variables
+  - Dark text on light backgrounds for readability
+  - Hover effects and state indicators
+
+- **Dashboard Views**
+  - Admin dashboard with all features
+  - Member dashboard with access to relevant features
+  - Quick-access cards with icons
+  - Role-specific content display
+  - Breadcrumb navigation
+
+- **Data Tables & Lists**
+  - Sortable and filterable tables
+  - Hover effects on rows
+  - Inline action buttons
+  - Responsive table scrolling on mobile
+  - Empty state messages
+
+- **Form Controls**
+  - Date picker for session scheduling
+  - Rich text editor for notes
+  - File upload with validation
+  - Dropdown selects for role/PIC assignment
+  - Form validation and error messages
+
+### 🔒 Security & Permissions
+
+- **Role-Based Access Control**
+  - Admin: Full system access
+  - Ketua: Most features except user deletion
+  - Pembina: Limited admin features
+  - Member: View-only and personal data access
+
+- **Permission Checks**
+  - Attendance marking restricted by role
+  - Edit/delete operations require permission
+  - Session locking prevents unauthorized changes
+  - PIC assignment validated before saving
+
+- **Data Protection**
+  - Password hashing with bcrypt
+  - Session-based authentication
+  - CSRF protection (Flask built-in)
+  - SQL injection prevention via SQLAlchemy ORM
+  - Secure password storage
+
+### 💾 Data Management
+
+- **Database Support**
+  - SQLite for development
+  - PostgreSQL for production
+  - SQLAlchemy ORM for abstraction
+  - Database migrations via Alembic
+  - Automatic schema management
+
+- **File Storage**
+  - Profile pictures stored as BLOB in database
+  - Support for PNG, JPG, JPEG, WebP formats
+  - 5MB file size limit
+  - Automatic filename sanitization
+  - Default image fallback
+
+- **Data Export**
+  - Export attendance to DOCX format
+  - CSV export for member lists
+  - Download formatted reports
+  - Timestamped file naming
+
+---
+
+## 🎯 Feature Availability by Role
+
+### 👑 Admin
+- Everything (full system access)
+- Create/edit/delete sessions, PICs, members
+- Mark attendance and lock sessions
+- Manage email reminders and schedules
+- View all analytics and reports
+
+### 👔 Ketua (Chairman)
+- Create sessions and mark attendance
+- Manage members (add/edit, but not delete)
+- Create/edit notulensi
+- View analytics
+- Manage piket schedules
+- Cannot delete last admin
+
+### 📚 Pembina (Advisor)
+- Create sessions and mark attendance
+- View member list
+- Create/edit notulensi
+- Limited attendance viewing
+- Support admin functions
+
+### 👤 Member
+- View own attendance history
+- Read meeting minutes
+- View member directory
+- View piket schedule
+- Ask chatbot questions
+- May have special "Can Mark Attendance" permission for their PIC
+
+---
+
+## 🚀 Advanced Workflows
+
+### Event Coordination Workflow
+1. Admin creates event session with "Event" type
+2. Assigns multiple PICs (Acara, Konsumsi, Dokumentasi)
+3. Each PIC coordinator marks attendance for their team
+4. Admins create detailed meeting minutes after event
+5. System generates summary for news feed
+6. Members view event details and notes
+
+### Weekly Piket Workflow
+1. Admin sets up weekly duty schedule
+2. Assigns members to specific days
+3. System sends automatic email reminders at 06:00 WIB
+4. Members see upcoming duties on their dashboard
+5. Admin can test reminders before going live
+6. Logs track all reminder sends and failures
+
+### Member Onboarding Workflow
+1. Admin batch-adds new members via CSV
+2. System assigns default password
+3. Members forced to change password on first login
+4. Admins assign members to PICs
+5. Members can upload profile picture
+6. Members granted specific permissions as needed
+
+---
+
+## 📊 Data You Can Track
+
+- Attendance records (date, session, status, timestamp)
+- Member information (name, email, class, role, PIC)
+- Session details (name, date, type, lock status)
+- Meeting notes (content, creation/update dates)
+- Email reminders (recipients, status, timestamps)
+- User activities (login, profile updates, uploads)
+- PIC assignments (member-to-division mappings)
+- Weekly duty schedules (day-of-week assignments)
+
+---
+
+## ⚡ Performance Features
+
+- **Auto-Save** on notulensi with change detection
+- **Session Locking** prevents accidental modifications
+- **One-Click Attendance** marking for speed
+- **Batch Operations** for bulk member management
+- **Caching** of profile pictures as BLOB
+- **Lazy Loading** of news feed data
+
+---
+
+## 🔧 Technical Integrations
+
+- **Groq API** for AI chatbot and summarization
+- **Mailjet or Resend** for email delivery
+- **FullCalendar** for interactive calendar display
+- **Quill.js** for rich text editing
+- **Hijri Calendar** library for Islamic date conversion
+- **Python-DOCX** for document generation
+
+---
+
+## ✨ Quality of Life Features
+
+- **Unsaved Changes Warning** prevents data loss
+- **Keyboard Shortcuts** (Ctrl+S to save notulensi)
+- **Dark Mode Aware** styling
+- **Timezone Support** (WIB timestamps)
+- **Loading Indicators** during operations
+- **Success/Error Feedback** messages
+- **Confirmation Dialogs** for destructive actions
+- **Empty State Messages** guide users
+- **Breadcrumb Navigation** for context
+- **Back Buttons** on every page
+
+---
+
+## 📱 Responsive Features
+
+- Mobile-friendly navigation
+- Touch-friendly buttons and clickable areas
+- Responsive tables with horizontal scroll
+- Stacked layouts on small screens
+- Optimized calendar view for mobile
+- Mobile-optimized forms
+- Touchscreen-friendly date picker
+
+---
+
+## 🛡️ System Reliability
+
+- **Error Handling** with user-friendly messages
+- **Graceful Degradation** when APIs unavailable
+- **Fallback Content** if summaries fail
+- **Database Integrity** via constraints
+- **Logging** of all major operations
+- **Session Management** prevents data loss
+- **Transaction Safety** for critical operations
+
+---
+
+**Last Updated:** February 2026
+**Version:** 1.0 - Feature Complete Release
