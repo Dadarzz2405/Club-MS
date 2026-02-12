@@ -28,7 +28,6 @@ from email.mime.multipart import MIMEMultipart
 from typing import List, Dict
 from email_service import get_email_service
 import logging
-from flask_apscheduler import APScheduler
 # Load environment variables from .env file in development
 load_dotenv()
 
@@ -47,9 +46,6 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 migrate = Migrate(app, db)
 attendance_bp = Blueprint("attendance", __name__)
-scheduler = APScheduler()
-scheduler.init_app(app)
-scheduler.start()
 #manager ofc, t can see it
 @login_manager.user_loader
 def load_user(user_id):
@@ -64,11 +60,7 @@ def health_check():
         'timestamp': datetime.utcnow().isoformat(),
         'message': 'App is awake and running'
     })
-scheduler = APScheduler()
-scheduler.init_app(app)
-scheduler.start()
 
-@scheduler.task('cron', id='send_piket_reminders', hour=6, minute=0, timezone='Asia/Jakarta')
 def scheduled_piket_reminder():
     """Send piket reminders daily at 06:00 WIB"""
     with app.app_context():
@@ -1508,7 +1500,6 @@ def forbidden(e):
 # ============================================================================
 
 @app.route('/api/cron/piket-reminder', methods=['POST'])
-@app.route('/api/cron/piket-reminder', methods=['POST'])
 def cron_piket_reminder():
     expected_token = os.environ.get('CRON_SECRET_TOKEN')
     
@@ -1517,9 +1508,25 @@ def cron_piket_reminder():
         return jsonify({
             'success': False,
             'error': 'Service not configured'
-        }), 503 
+        }), 503
+    provided_token = request.headers.get('X-Cron-Secret')
+    
+    if not provided_token and request.is_json:
+        provided_token = request.json.get('secret')
+    
+    if not provided_token or provided_token != expected_token:
+        app.logger.warning(
+            f"❌ Unauthorized cron attempt from {request.remote_addr} "
+            f"- Token: {'present but wrong' if provided_token else 'missing'}"
+        )
+        return jsonify({
+            'success': False,
+            'error': 'Unauthorized'
+        }), 401
+  
+    app.logger.info(f"✅ Authenticated cron request from {request.remote_addr}")
+    
     try:
-        # Get current day in WIB timezone (UTC+7)
         wib = timezone(timedelta(hours=7))
         now_wib = datetime.now(wib)
         
