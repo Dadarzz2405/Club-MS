@@ -28,8 +28,21 @@ from email.mime.multipart import MIMEMultipart
 from typing import List, Dict
 from email_service import get_email_service
 import logging
-# Load environment variables from .env file in development
+import os
+from dotenv import load_dotenv
+
 load_dotenv()
+
+database_url = os.environ.get('DATABASE_URL')
+if database_url and database_url.startswith('postgres://'):
+    database_url = database_url.replace('postgres://', 'postgresql://', 1)
+
+# Configure SQLAlchemy for Supabase (requires SSL)
+if database_url:
+    # Add SSL mode if not present
+    if 'sslmode' not in database_url:
+        separator = '&' if '?' in database_url else '?'
+        database_url = f"{database_url}{separator}sslmode=require"
 
 logger = logging.getLogger(__name__)
 UPLOAD_FOLDER = 'static/uploads/profiles'
@@ -38,6 +51,13 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
+    'pool_recycle': 300,
+    'connect_args': {
+        'sslmode': 'require'
+    }
+}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 db.init_app(app)
 bcrypt = Bcrypt(app)
@@ -46,6 +66,7 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 migrate = Migrate(app, db)
 attendance_bp = Blueprint("attendance", __name__)
+
 #manager ofc, t can see it
 @login_manager.user_loader
 def load_user(user_id):
