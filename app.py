@@ -10,7 +10,7 @@ from models import (
     Pic, db, User, Session, Attendance, Notulensi,
     Division, JadwalPiket, PiketAssignment, EmailReminderLog, SessionPIC
 )
-from datetime import datetime, date, timezone, timedelta
+from datetime import datetime, date, timezone, timedelta, time
 from ummalqura.hijri_date import HijriDate
 import json
 from werkzeug.utils import secure_filename
@@ -28,9 +28,21 @@ from email.mime.multipart import MIMEMultipart
 from typing import List, Dict
 from email_service import get_email_service
 import logging
+import os
+from dotenv import load_dotenv
 
-# Load environment variables from .env file in development
 load_dotenv()
+
+database_url = os.environ.get('DATABASE_URL')
+if database_url and database_url.startswith('postgres://'):
+    database_url = database_url.replace('postgres://', 'postgresql://', 1)
+
+# Configure SQLAlchemy for Supabase (requires SSL)
+if database_url:
+    # Add SSL mode if not present
+    if 'sslmode' not in database_url:
+        separator = '&' if '?' in database_url else '?'
+        database_url = f"{database_url}{separator}sslmode=require"
 
 logger = logging.getLogger(__name__)
 UPLOAD_FOLDER = 'static/uploads/profiles'
@@ -39,6 +51,13 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
+    'pool_recycle': 300,
+    'connect_args': {
+        'sslmode': 'require'
+    }
+}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 db.init_app(app)
 bcrypt = Bcrypt(app)
@@ -62,6 +81,57 @@ def health_check():
         'timestamp': datetime.utcnow().isoformat(),
         'message': 'App is awake and running'
     })
+
+def scheduled_piket_reminder():
+    """Send piket reminders daily at 06:00 WIB"""
+    with app.app_context():
+        from datetime import datetime
+        wib = timezone(timedelta(hours=7))
+        now_wib = datetime.now(wib)
+        day_of_week = now_wib.weekday()
+        day_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        day_name = day_names[day_of_week]
+        date_str = now_wib.strftime('%d %B %Y')
+        
+        jadwal = JadwalPiket.query.filter_by(day_of_week=day_of_week).first()
+        
+        if not jadwal:
+            logger.info(f'No piket scheduled for {day_name}')
+            return
+        
+        assignments = PiketAssignment.query.filter_by(jadwal_id=jadwal.id).all()
+        
+        if not assignments:
+            logger.info(f'No members assigned for {day_name}')
+            return
+        
+        recipients = [a.user.email for a in assignments if a.user and a.user.email]
+        
+        if not recipients:
+            logger.warning(f'No valid emails for {day_name}')
+            return
+        
+        email_service = get_email_service()
+        result = email_service.send_piket_reminder(
+            recipients=recipients,
+            day_name=day_name,
+            date_str=date_str,
+            additional_info=""
+        )
+        
+        log = EmailReminderLog(
+            day_of_week=day_of_week,
+            day_name=day_name,
+            recipients_count=len(recipients),
+            recipients=json.dumps(recipients),
+            status='success' if result['success'] else 'partial',
+            error_message=result.get('message') if not result['success'] else None
+        )
+        db.session.add(log)
+        db.session.commit()
+        
+        logger.info(f'Piket reminder sent for {day_name} to {len(recipients)} recipients')
+
 #Login, no need comment actually
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -236,7 +306,7 @@ def member_management():
 
     users = User.query.order_by(User.name).all()
     all_pics = Pic.query.order_by(Pic.name).all()
-    return render_template('member_management.html', users=users, all_pics=all_pics)
+    return render_template('member_management_with_pic.html', users=users, all_pics=all_pics)
 
 
 @app.route('/member-management/batch-add', methods=['POST'])
@@ -396,8 +466,6 @@ def assign_member_to_pic(user_id):
                 flash(f'{user.name} has no PIC assignment', 'info')
         
         # Also update attendance permission if needed
-        # user.can_mark_attendance = (user.pic_id is not None)
-        
         db.session.commit()
         
     except ValueError:
@@ -559,7 +627,7 @@ def assign_pics_to_session(session_id):
     # GET request - show form
     available_pics = Pic.query.all()
     return render_template(
-        'assign_pics_to_session.html',
+        'assign_pics.html',
         session=session,
         available_pics=available_pics
     )
@@ -1453,7 +1521,6 @@ def forbidden(e):
 # ============================================================================
 
 @app.route('/api/cron/piket-reminder', methods=['POST'])
-@app.route('/api/cron/piket-reminder', methods=['POST'])
 def cron_piket_reminder():
     expected_token = os.environ.get('CRON_SECRET_TOKEN')
     
@@ -1462,9 +1529,25 @@ def cron_piket_reminder():
         return jsonify({
             'success': False,
             'error': 'Service not configured'
-        }), 503 
+        }), 503
+    provided_token = request.headers.get('X-Cron-Secret')
+    
+    if not provided_token and request.is_json:
+        provided_token = request.json.get('secret')
+    
+    if not provided_token or provided_token != expected_token:
+        app.logger.warning(
+            f"❌ Unauthorized cron attempt from {request.remote_addr} "
+            f"- Token: {'present but wrong' if provided_token else 'missing'}"
+        )
+        return jsonify({
+            'success': False,
+            'error': 'Unauthorized'
+        }), 401
+  
+    app.logger.info(f"✅ Authenticated cron request from {request.remote_addr}")
+    
     try:
-        # Get current day in WIB timezone (UTC+7)
         wib = timezone(timedelta(hours=7))
         now_wib = datetime.now(wib)
         
