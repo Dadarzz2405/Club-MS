@@ -2,7 +2,8 @@ import os
 import re
 from html import unescape
 from groq import Groq
-
+from dotenv import load_dotenv
+load_dotenv()
 SUMMARIZER_PROMPT = """
 You are a meeting minutes summarizer for a school Islamic organization (Rohis).
 

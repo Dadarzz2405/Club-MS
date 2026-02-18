@@ -1,6 +1,7 @@
 import os
 from groq import Groq
-
+from dotenv import load_dotenv
+load_dotenv()
 FORMATTER_PROMPT = """
 You are a data formatting engine.
 

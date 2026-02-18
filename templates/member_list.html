@@ -15,7 +15,7 @@
             <div class="d-flex gap-2">
                 {% if current_user.role in ['admin', 'ketua', 'pembina'] %}
                 <a class="btn btn-primary" href="{{ url_for('member_management') }}">
-                    <i class="fas fa-user-plus me-2"></i>Manage Members
+                    <i class="fas fa-user-cog me-2"></i>Manage Members
                 </a>
                 {% endif %}
                 <a href="{% if current_user.role in ['admin', 'ketua', 'pembina'] %}{{ url_for('dashboard_admin') }}{% else %}{{ url_for('dashboard_member') }}{% endif %}" class="btn btn-outline-secondary">
@@ -113,27 +113,6 @@
                             </span>
                         </div>
                         {% endif %}
-                        
-                        <!-- Admin Controls -->
-                        {% if current_user.role in ['admin', 'ketua', 'pembina'] %}
-                        <div class="mt-3">
-                            <form method="POST" action="{{ url_for('change_member_role', user_id=u.id) }}" class="d-inline-block me-2">
-                                <div class="input-group input-group-sm">
-                                    <select name="role" class="form-select form-select-sm">
-                                        <option value="member" {% if u.role == 'member' %}selected{% endif %}>Member</option>
-                                        <option value="pembina" {% if u.role == 'pembina' %}selected{% endif %}>Pembina</option>
-                                        <option value="ketua" {% if u.role == 'ketua' %}selected{% endif %}>Ketua</option>
-                                        <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>Admin</option>
-                                    </select>
-                                    <button class="btn btn-outline-primary" type="submit">Change</button>
-                                </div>
-                            </form>
-
-                            <form method="POST" action="{{ url_for('delete_member', user_id=u.id) }}" class="d-inline-block" onsubmit="return confirm('Delete member {{ u.name }}?')">
-                                <button class="btn btn-outline-danger btn-sm">Delete</button>
-                            </form>
-                        </div>
-                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -147,8 +126,6 @@
         </div>
     </div>
 </div>
-
-<!-- Batch add/delete moved to Member Management page -->
 
 <style>
 .hover-card {

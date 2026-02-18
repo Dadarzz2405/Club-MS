@@ -23,7 +23,7 @@ from models import (
     Pic, db, User, Session, Attendance, Notulensi,
     Division, JadwalPiket, PiketAssignment, EmailReminderLog, SessionPIC,
 )
-from datetime import datetime, date, timezone, timedelta
+from datetime import datetime, date, timezone, timedelta, time
 from ummalqura.hijri_date import HijriDate
 import json
 from werkzeug.utils import secure_filename
@@ -35,18 +35,10 @@ from summarizer import summarize_notulensi
 from sqlalchemy.exc import IntegrityError
 from email_service import get_email_service
 import logging
+import os
+from dotenv import load_dotenv
 
 load_dotenv()
-
-# ---------------------------------------------------------------------------
-# Database URL normalisation (Heroku / Render postgres:// → postgresql://)
-# ---------------------------------------------------------------------------
-database_url = os.environ.get("DATABASE_URL", "")
-if database_url.startswith("postgres://"):
-    database_url = database_url.replace("postgres://", "postgresql://", 1)
-if database_url and "sslmode" not in database_url:
-    sep = "&" if "?" in database_url else "?"
-    database_url = f"{database_url}{sep}sslmode=require"
 
 logger = logging.getLogger(__name__)
 
@@ -56,22 +48,9 @@ ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 # App & extension init
 # ---------------------------------------------------------------------------
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "change-me")
-app.config["SQLALCHEMY_DATABASE_URI"] = database_url or os.environ.get("DATABASE_URL")
-app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_pre_ping": True,
-    "pool_recycle": 300,
-    "connect_args": {"sslmode": "require"},
-}
-
-# CORS — allow the Next.js dev server and production origin
-FRONTEND_ORIGIN = os.environ.get("FRONTEND_ORIGIN", "http://localhost:3000")
-CORS(
-    app,
-    origins=[FRONTEND_ORIGIN],
-    supports_credentials=True,   # required for session cookies
-)
-
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 db.init_app(app)
 bcrypt = Bcrypt(app)
 migrate = Migrate(app, db)
@@ -174,17 +153,13 @@ def serialize_notulensi(note):
 @app.route("/health")
 def health_check():
     return jsonify({
-        "status": "ok",
-        "service": "Rohis Attendance API",
-        "timestamp": datetime.utcnow().isoformat(),
+        'status': 'ok',
+        'service': 'Rohis Attendance System',
+        'timestamp': datetime.utcnow().isoformat(),
+        'message': 'App is awake and running'
     })
-
-
-# ===========================================================================
-# AUTH
-# ===========================================================================
-
-@app.route("/api/auth/login", methods=["POST"])
+#Login, no need comment actually
+@app.route('/login', methods=['GET', 'POST'])
 def login():
     data = request.get_json() or {}
     email = data.get("email", "").strip().lower()
@@ -434,14 +409,32 @@ def delete_member(user_id):
         return jsonify({"success": False, "message": "Access denied"}), 403
 
     user = User.query.get_or_404(user_id)
-    if user.id == current_user.id:
-        return jsonify({"success": False, "message": "Cannot delete your own account"}), 400
-
-    if user.role == "admin" and User.query.filter_by(role="admin").count() <= 1:
-        return jsonify({"success": False, "message": "Cannot delete the last admin"}), 400
-
+    pic_id = request.form.get('pic_id')
+    
     try:
-        db.session.delete(user)
+        if pic_id and pic_id.strip():
+            # Assign to PIC
+            pic_id = int(pic_id)
+            pic = Pic.query.get(pic_id)
+            
+            if not pic:
+                flash(f'Invalid PIC selected', 'error')
+                return redirect(url_for('member_management'))
+            
+            user.pic_id = pic_id
+            flash(f'✅ {user.name} assigned to {pic.name}', 'success')
+        else:
+            # Remove PIC assignment
+            if user.pic_id:
+                old_pic = Pic.query.get(user.pic_id)
+                user.pic_id = None
+                flash(f'Removed {user.name} from {old_pic.name if old_pic else "PIC"}', 'info')
+            else:
+                flash(f'{user.name} has no PIC assignment', 'info')
+        
+        # Also update attendance permission if needed
+        # user.can_mark_attendance = (user.pic_id is not None)
+        
         db.session.commit()
         return jsonify({"success": True, "message": "Member deleted"})
     except Exception as e:
@@ -522,43 +515,55 @@ def toggle_attendance_permission(user_id):
 
 @app.route("/api/sessions")
 @login_required
-def list_sessions():
-    session_type = request.args.get("type")  # optional filter
-    q = Session.query
-    if session_type:
-        q = q.filter_by(session_type=session_type)
-    sessions = q.order_by(Session.date.desc()).all()
-    return jsonify({"success": True, "sessions": [serialize_session(s) for s in sessions]})
+def assign_pics_to_session(session_id):
+    """Assign PICs (divisions) to a session"""
+    if current_user.role not in ['admin', 'ketua', 'pembina']:
+        abort(403)
+    
+    session = Session.query.get_or_404(session_id)
+    
+    if request.method == 'POST':
+        # Get selected PIC IDs
+        pic_ids = request.form.getlist('pic_ids')
+        
+        try:
+            # Remove all existing PIC assignments for this session
+            SessionPIC.query.filter_by(session_id=session_id).delete()
+            
+            # Add new PIC assignments
+            for pic_id_str in pic_ids:
+                try:
+                    pic_id = int(pic_id_str)
+                    # Verify PIC exists
+                    pic = Pic.query.get(pic_id)
+                    if pic:
+                        session_pic = SessionPIC(
+                            session_id=session_id,
+                            pic_id=pic_id
+                        )
+                        db.session.add(session_pic)
+                except (ValueError, TypeError):
+                    continue
+            
+            db.session.commit()
+            flash(f'PICs updated for "{session.name}"', 'success')
+            return redirect(url_for('assign_pics_to_session', session_id=session_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating PICs: {str(e)}', 'error')
+            return redirect(url_for('assign_pics_to_session', session_id=session_id))
+    
+    # GET request - show form
+    available_pics = Pic.query.all()
+    return render_template(
+        'assign_pics_to_session.html',
+        session=session,
+        available_pics=available_pics
+    )
 
 
-@app.route("/api/sessions", methods=["POST"])
-@login_required
-def create_session():
-    if current_user.role not in ["admin", "ketua", "pembina"]:
-        return jsonify({"success": False, "message": "Access denied"}), 403
-
-    data = request.get_json() or {}
-    name = data.get("name", "").strip()
-    date_val = data.get("date", "").strip()
-    session_type = data.get("session_type", "all")
-    description = data.get("description", "").strip() or None
-
-    if not name or not date_val:
-        return jsonify({"success": False, "message": "Name and date are required"}), 400
-    if session_type not in ("all", "core", "event"):
-        session_type = "all"
-
-    s = Session(name=name, date=date_val, session_type=session_type, description=description)
-    try:
-        db.session.add(s)
-        db.session.commit()
-        return jsonify({"success": True, "message": "Session created", "session": serialize_session(s)}), 201
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"success": False, "message": str(e)}), 500
-
-
-@app.route("/api/sessions/<int:session_id>", methods=["DELETE"])
+@app.route('/session/<int:session_id>/remove-pic/<int:pic_id>', methods=['POST'])
 @login_required
 def delete_session(session_id):
     if current_user.role not in ["admin", "ketua", "pembina"]:
@@ -1107,62 +1112,164 @@ def _plain_preview(html_content, max_len=150):
 # CHATBOT
 # ===========================================================================
 
-@app.route("/api/chat", methods=["POST"])
-@login_required
-def chat():
-    data = request.get_json() or {}
-    message = data.get("message", "").strip()
-    if not message:
-        return jsonify({"reply": {"action": "chat", "message": "Please type a question."}}), 400
-
+@app.route('/api/cron/piket-reminder', methods=['POST'])
+@app.route('/api/cron/piket-reminder', methods=['POST'])
+def cron_piket_reminder():
+    expected_token = os.environ.get('CRON_SECRET_TOKEN')
+    
+    if not expected_token:
+        app.logger.error("CRON_SECRET_TOKEN not set - piket reminders disabled")
+        return jsonify({
+            'success': False,
+            'error': 'Service not configured'
+        }), 503 
     try:
-        reply = call_chatbot_groq(message)
+        # Get current day in WIB timezone (UTC+7)
+        wib = timezone(timedelta(hours=7))
+        now_wib = datetime.now(wib)
+        
+        # Get day of week (0=Monday, 6=Sunday)
+        day_of_week = now_wib.weekday()
+        day_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        day_name = day_names[day_of_week]
+        date_str = now_wib.strftime('%d %B %Y')
+        
+        # Find jadwal for today
+        jadwal = JadwalPiket.query.filter_by(day_of_week=day_of_week).first()
+        
+        if not jadwal:
+            # No jadwal configured for this day - log and return
+            log = EmailReminderLog(
+                day_of_week=day_of_week,
+                day_name=day_name,
+                recipients_count=0,
+                recipients='[]',
+                status='skipped',
+                error_message='No jadwal piket configured for this day'
+            )
+            db.session.add(log)
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'No piket scheduled for {day_name}',
+                'day': day_name,
+                'date': date_str,
+                'recipients_count': 0
+            }), 200
+        
+        # Get assigned users for today
+        assignments = PiketAssignment.query.filter_by(jadwal_id=jadwal.id).all()
+        
+        if not assignments:
+            # Jadwal exists but no members assigned
+            log = EmailReminderLog(
+                day_of_week=day_of_week,
+                day_name=day_name,
+                recipients_count=0,
+                recipients='[]',
+                status='skipped',
+                error_message='No members assigned to this day'
+            )
+            db.session.add(log)
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'No members assigned for {day_name}',
+                'day': day_name,
+                'date': date_str,
+                'recipients_count': 0
+            }), 200
+        
+        # Collect recipient emails
+        recipients = []
+        for assignment in assignments:
+            user = assignment.user
+            if user and user.email:
+                recipients.append(user.email)
+        
+        if not recipients:
+            # Assignments exist but no valid emails
+            log = EmailReminderLog(
+                day_of_week=day_of_week,
+                day_name=day_name,
+                recipients_count=0,
+                recipients='[]',
+                status='failed',
+                error_message='No valid email addresses found for assigned members'
+            )
+            db.session.add(log)
+            db.session.commit()
+            
+            return jsonify({
+                'success': False,
+                'error': 'No valid email addresses found',
+                'day': day_name,
+                'date': date_str
+            }), 500
+        
+        # Send emails
+        email_service = get_email_service()
+        result = email_service.send_piket_reminder(
+            recipients=recipients,
+            day_name=day_name,
+            date_str=date_str,
+            additional_info=""  # Can be customized
+        )
+        
+        # Log the reminder
+        log = EmailReminderLog(
+            day_of_week=day_of_week,
+            day_name=day_name,
+            recipients_count=len(recipients),
+            recipients=json.dumps(recipients),
+            status='success' if result['success'] else 'partial',
+            error_message=result.get('message') if not result['success'] else None
+        )
+        db.session.add(log)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': result['message'],
+            'day': day_name,
+            'date': date_str,
+            'recipients_count': len(recipients),
+            'failed_emails': result.get('failed_emails', [])
+        }), 200
+        
     except Exception as e:
-        logger.error("Chatbot error: %s", e)
-        reply = {"action": "chat", "message": "Error occurred. Please try again."}
-
-    return jsonify({"reply": reply})
-
-
-# ===========================================================================
-# JADWAL PIKET
-# ===========================================================================
-
-@app.route("/api/piket")
-@login_required
-def view_piket():
-    """Returns weekly piket schedule."""
-    day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-    wib = timezone(timedelta(hours=7))
-    today_idx = datetime.now(wib).weekday()
-
-    schedule = []
-    for idx, name in enumerate(day_names):
-        jadwal = JadwalPiket.query.filter_by(day_of_week=idx).first()
-        assignments = []
-        if jadwal:
-            assignments = [
-                {
-                    "user_id": a.user.id,
-                    "name": a.user.name,
-                    "class_name": a.user.class_name,
-                    "email": a.user.email,
-                    "is_current_user": a.user.id == current_user.id,
-                }
-                for a in jadwal.assignments
-            ]
-        schedule.append({
-            "day_of_week": idx,
-            "day_name": name,
-            "is_today": idx == today_idx,
-            "assignments": assignments,
-            "updated_at": jadwal.updated_at.isoformat() if jadwal and jadwal.updated_at else None,
-        })
-
-    return jsonify({"success": True, "schedule": schedule})
+        # Log the error
+        try:
+            error_log = EmailReminderLog(
+                day_of_week=now_wib.weekday() if 'now_wib' in locals() else -1,
+                day_name='Unknown',
+                recipients_count=0,
+                recipients='[]',
+                status='failed',
+                error_message=str(e)
+            )
+            db.session.add(error_log)
+            db.session.commit()
+        except:
+            pass
+        
+        print(f"Piket reminder error: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 
-@app.route("/api/piket", methods=["POST"])
+# ============================================================================
+# ADMIN ROUTES - Manage jadwal piket
+# ============================================================================
+
+@app.route('/admin/jadwal-piket', methods=['GET', 'POST'])
 @login_required
 def update_piket():
     """Admin: update piket assignments for a day."""

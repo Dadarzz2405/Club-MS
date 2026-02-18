@@ -5,7 +5,8 @@ from datetime import datetime
 from typing import List, Dict
 import json
 import logging
-
+from dotenv import load_dotenv
+load_dotenv()
 logger = logging.getLogger(__name__)
 
 class EmailService:
@@ -14,7 +15,7 @@ class EmailService:
         self.resend_api_key = os.environ.get('RESEND_API_KEY')
         self.mailjet_api_key = os.environ.get('MAILJET_API_KEY')
         self.mailjet_api_secret = os.environ.get('MAILJET_API_SECRET')
-        self.sender_email = os.environ.get('SENDER_EMAIL', 'haidaralifawwaz@gmail.com')
+        self.sender_email = os.environ.get('SENDER_EMAIL', 'rohisdarsa@gmail.com')
         self.sender_name = os.environ.get('SENDER_NAME', 'Rohis Attendance System')
 
         if self.resend_api_key:
@@ -178,9 +179,9 @@ class EmailService:
                 'failed_emails': []
             }
     
-def _generate_email_html(self, day_name: str, date_str: str, additional_info: str) -> str:
-    """Generate HTML email body"""
-    return f"""
+    def _generate_email_html(self, day_name: str, date_str: str, additional_info: str) -> str:
+        """Generate HTML email body"""
+        return f"""
         <!DOCTYPE html>
         <html>
         <head>
@@ -298,8 +299,7 @@ def _generate_email_html(self, day_name: str, date_str: str, additional_info: st
         </body>
         </html>
         """
-
-    
+        
     def _generate_email_text(self, day_name: str, date_str: str, additional_info: str) -> str:
         """Generate plain text email body (fallback)"""
         text = f"""
@@ -333,14 +333,23 @@ def _generate_email_html(self, day_name: str, date_str: str, additional_info: st
             GDA Jogja
             """
         return text.strip()
-
-
-# Singleton instance
+    # Singleton instance
 _email_service = None
 
 def get_email_service() -> EmailService:
-    """Get or create the email service singleton"""
     global _email_service
     if _email_service is None:
         _email_service = EmailService()
     return _email_service
+
+if __name__ == "__main__":
+    service = get_email_service()
+
+    result = service.send_piket_reminder(
+        recipients=["irfan.ansari@gdajogja.sch.id"],
+        day_name="Monday",
+        date_str="08 February 2026",
+        additional_info="Testing email service."
+    )
+
+    print(result)

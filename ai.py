@@ -1,7 +1,8 @@
 import os
 import re
 from groq import Groq
-
+from dotenv import load_dotenv
+load_dotenv()
 SYSTEM_PROMPT = """
 You are an Islamic educational assistant for a school Rohis organization.
 Explain concepts clearly and respectfully.
@@ -33,17 +34,10 @@ NAV_REGEX = re.compile(r"^NAVIGATE\s*:\s*(\w+)$", re.IGNORECASE)
 
 
 class APIKeyError(Exception):
-    """Raised when API key is missing or invalid"""
     pass
 
 
 def get_groq_client():
-    """
-    Get Groq client with proper error handling.
-    
-    Raises:
-        APIKeyError: If GROQ_API_KEY is not set in environment
-    """
     api_key = os.environ.get("GROQ_API_KEY")
     
     if not api_key:
@@ -98,7 +92,7 @@ def call_chatbot_groq(message: str) -> dict:
                 {"role": "user", "content": message.strip()}
             ],
             temperature=0.3,
-            max_tokens=320,
+            max_tokens=180,
         )
 
         content = completion.choices[0].message.content.strip()
